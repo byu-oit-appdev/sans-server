@@ -24,10 +24,12 @@ const schemas               = require('./schemas');
 
 const event = EventInterface.firer('server');
 
-module.exports = Server;
+module.exports = SanServer;
 
-function Server(configuration) {
-    const config = schemas.server.normalize(Object.assign({}, copy(Server.defaults), configuration || {}));
+function SanServer(configuration) {
+    const config = schemas.server.normalize(Object.assign({}, copy(SanServer.defaults), configuration || {}));
+    const factory = Object.create(SanServer.prototype);
+    const handlers = {};
 
     // validate method middleware
     function validateMethod(req, res, next) {
@@ -36,12 +38,38 @@ function Server(configuration) {
     }
 
     /**
+     * Stop listening for an event.
+     * @name SanServer#off
+     * @param {string} type
+     * @param {function} callback
+     */
+    factory.off = function(type, callback) {
+        if (handlers.hasOwnProperty(type)) {
+            const index = handlers[type].indexOf(callback);
+            if (index !== -1) handlers[type].splice(index, 1);
+        }
+    };
+
+    /**
+     * Start listening for an event.
+     * @name SanServer#on
+     * @param {string} type
+     * @param {function} callback
+     */
+    factory.on = function(type, callback) {
+        if (typeof callback !== 'function') throw Error('Invalid handler specified. Expected a function. Received: ' + callback);
+        if (!handlers.hasOwnProperty(type)) handlers[type] = [];
+        if (handlers[type].indexOf(callback) === -1) handlers[type].push(callback);
+    };
+
+    /**
      * Have the server execute a request.
+     * @name SanServer#request
      * @params {object} request An object that has request details.
      * @params {function} [callback] The function to call once the request has been processed.
      * @returns {Promise|undefined}
      */
-    return function server(request, callback) {
+    factory.request = function(request, callback) {
         // get middleware chain
         const chain = config.middleware.concat();
         chain.unshift(validateMethod);
@@ -133,9 +161,11 @@ function Server(configuration) {
         if (typeof callback !== 'function') return deferred.promise;
         deferred.promise.then(function(data) { callback(data) });
     };
+
+    return factory;
 }
 
-Server.defaults = {
+SanServer.defaults = {
     logs: {
         duration: false,
         grouped: true,
@@ -164,7 +194,7 @@ function copy(obj) {
 
 /**
  * Produce a consistent message from event data.
- * @param {object} config Server logs configuration.
+ * @param {object} config SanServer logs configuration.
  * @param {object} data
  * @returns {string}
  */

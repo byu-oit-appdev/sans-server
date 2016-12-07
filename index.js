@@ -16,4 +16,4 @@
  **/
 'use strict';
 
-module.exports = require('./bin/server/server');
+module.exports = require('./bin/server/san-server');
