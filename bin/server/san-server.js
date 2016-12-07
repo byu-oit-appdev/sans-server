@@ -71,7 +71,10 @@ SanServer.prototype.request = function(request, callback) {
         const err = Error('Invalid execution context. Must be an instance of SansServer. Currently: ' + this);
         err.code = 'ESSCTX';
         err.context = this;
-        return paradigm(Promise.reject(err), callback);
+
+        const res = Response.error();
+        res.error = err;
+        return paradigm(Promise.resolve(res), callback);
     }
 
     try {
@@ -172,7 +175,9 @@ SanServer.prototype.request = function(request, callback) {
         return paradigm(deferred.promise, callback);
 
     } catch (err) {
-        return paradigm(Promise.reject(err), callback);
+        const res = Response.error();
+        res.error = err;
+        return paradigm(Promise.resolve(res), callback);
     }
 };
 
