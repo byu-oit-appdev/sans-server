@@ -10,7 +10,8 @@
     "test": "test"
   },
   "scripts": {
-    "test": "nyc mocha test/**/*.js && nyc report --reporter=text-lcov | coveralls"
+    "test": "nyc mocha test/**/*.js && nyc report --reporter=text-lcov | coveralls",
+    "test-local": "nyc mocha test/**/*.js"
   },
   "keywords": [
     "server"
