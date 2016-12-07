@@ -20,6 +20,6 @@ module.exports = function(promise, callback) {
     if (typeof callback !== 'function') return promise;
     promise.then(
         function(data) { callback(null, data) },
-        function(err) { callback(err, data) }
+        function(err) { callback(err, null) }
     );
 };
