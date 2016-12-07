@@ -1,0 +1,31 @@
+{
+  "name": "node-byu-api",
+  "version": "0.0.1",
+  "description": "A module that provides a functional server interface for processing requests.",
+  "main": "index.js",
+  "bin": {
+    "node-byu-api": "pretty-print.js"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "nyc mocha test/**/*.js && nyc report --reporter=text-lcov | coveralls"
+  },
+  "keywords": [
+    "server"
+  ],
+  "author": "James Speirs <james.speirs@gmail.com>",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "coveralls": "^2.11.15",
+    "mocha": "^3.2.0"
+  },
+  "dependencies": {
+    "cookie": "^0.3.1",
+    "http-status": "^0.2.3",
+    "object-schemata": "^1.0.8",
+    "uuid": "^3.0.1"
+  }
+}
