@@ -50,9 +50,13 @@ exports.fixedLength = function(str, length) {
 exports.seconds = function (milliseconds) {
     let seconds = milliseconds / 1000;
 
+    if (seconds > 9999) return '9999+';
+    if (seconds > 999) return Math.round(seconds) + ' ';
+
     const numeral = Math.floor(seconds);
     const decimalLen = 4 - numeral.toString().length;
-    const decimal = exports.addCharacters(Math.round((seconds - numeral) * 1000).toString(), '0', false, 3).substr(0, decimalLen);
+    const thousandths = Math.round((seconds - numeral) * Math.pow(10, decimalLen));
+    const decimal = exports.addCharacters(thousandths.toString(), '0', numeral > 0, decimalLen);
 
     return numeral + (decimal.length > 0 ? '.' : ' ') + decimal;
 };
