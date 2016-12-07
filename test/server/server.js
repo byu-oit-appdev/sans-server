@@ -16,12 +16,31 @@
  **/
 'use strict';
 const expect            = require('chai').expect;
-const Server            = require('../../bin/server/server');
+const SanServer         = require('../../bin/server/san-server');
 
 describe('server/server', () => {
-    Server.defaults.logs.silent = true;
+    SanServer.defaults.logs.silent = true;
 
-    describe('methods', () => {
+    describe('paradigms', () => {
+
+        it('promise paradigm', () => {
+            const server = SanServer();
+            const result = server.request();
+            expect(result).to.be.a(Promise);
+            return result;
+        });
+
+        it('callback paradigm', (done) => {
+            const server = SanServer();
+            const result = server.request(function(err, response) {
+                done(err);
+            });
+            expect(result).to.equal(undefined);
+        });
+
+    });
+
+    /*describe('methods', () => {
 
         it('allows GET', () => {
             const serve = Server();
@@ -70,6 +89,6 @@ describe('server/server', () => {
             return serve().then(res => expect(res.statusCode).to.equal(408));
         });
 
-    });
+    });*/
 
 });
