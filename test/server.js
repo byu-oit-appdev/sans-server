@@ -16,7 +16,7 @@
  **/
 'use strict';
 const expect            = require('chai').expect;
-const SansServer        = require('../../bin/server/sans-server');
+const SansServer        = require('../bin/server/sans-server');
 
 describe('server/server', () => {
     SansServer.defaults.logs.silent = true;
@@ -101,6 +101,37 @@ describe('server/server', () => {
         it('can next error', () => {
             const server = SansServer({ middleware: [ function fail(req, res, next) { next(Error('Fail')); } ]});
             return server.request().then(res => expect(res.statusCode).to.equal(500));
+        });
+
+    });
+
+    describe('requests', () => {
+
+        it('processes request', (done) => {
+            const request = {
+                body: 'body',
+                headers: { foo: 'bar' },
+                method: 'GET',
+                path: 'foo',
+                query: { q1: 'q1' }
+            };
+
+            const mw = function (req, res, next) {
+                try {
+                    expect(req).to.not.equal(request);
+                    expect(req.body).to.equal(request.body);
+                    expect(req.headers.Foo).to.equal(request.headers.foo);
+                    expect(req.method).to.equal(request.method);
+                    expect(req.path).to.equal(request.path);
+                    expect(req.query.q1).to.equal(request.query.q1);
+                    done();
+                } catch (e) {
+                    done(e);
+                }
+            };
+
+            const server = SansServer({ middleware: [ mw ]});
+            server.request(request);
         });
 
     });
