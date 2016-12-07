@@ -50,7 +50,7 @@ function SanServer(configuration) {
 /**
  * Have the server execute a request.
  * @name SanServer#request
- * @params {object} [request={}] An object that has request details.
+ * @params {object|string} [request={}] An object that has request details or a string that is a GET endpoint.
  * @params {function} [callback] The function to call once the request has been processed.
  * @returns {Promise|undefined}
  */
@@ -62,6 +62,9 @@ SanServer.prototype.request = function(request, callback) {
         callback = arguments[0];
         request = {};
     }
+
+    // if the request is a string then wrap it
+    if (typeof request === 'string') request = { path: request };
 
     // validate context
     if (!map.has(this)) {
