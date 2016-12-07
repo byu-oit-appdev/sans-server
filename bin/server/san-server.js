@@ -28,6 +28,12 @@ const map = new WeakMap();
 
 module.exports = SanServer;
 
+/**
+ * Create a san-server instance.
+ * @param configuration
+ * @returns {SanServer}
+ * @constructor
+ */
 function SanServer(configuration) {
     const config = schemas.server.normalize(Object.assign({}, copy(SanServer.defaults), configuration || {}));
     const factory = Object.create(SanServer.prototype);
@@ -44,11 +50,18 @@ function SanServer(configuration) {
 /**
  * Have the server execute a request.
  * @name SanServer#request
- * @params {object} request An object that has request details.
+ * @params {object} [request={}] An object that has request details.
  * @params {function} [callback] The function to call once the request has been processed.
  * @returns {Promise|undefined}
  */
 SanServer.prototype.request = function(request, callback) {
+    // handle argument variations
+    if (arguments.length === 0) {
+        request = {};
+    } else if (arguments.length === 1 && typeof arguments[0] === 'function') {
+        callback = arguments[0];
+        request = {};
+    }
 
     // validate context
     if (!map.has(this)) {
