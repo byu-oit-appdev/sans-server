@@ -17,7 +17,6 @@
 'use strict';
 const defer                 = require('../async/defer');
 const EventInterface        = require('../event-interface');
-const paradigm              = require('../async/paradigm');
 const prettyPrint           = require('../pretty-print');
 const Request               = require('./request');
 const Response              = require('./response');
@@ -131,7 +130,8 @@ function Server(configuration) {
         run(chain, req, res);
 
         // return the result
-        return paradigm(deferred.promise, callback);
+        if (typeof callback !== 'function') return deferred.promise;
+        deferred.promise.then(function(data) { callback(data) });
     };
 }
 
