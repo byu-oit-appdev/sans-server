@@ -23,19 +23,36 @@ describe('server/server', () => {
 
     describe('paradigms', () => {
 
-        it('promise paradigm', () => {
+        it('promise paradigm resolves', () => {
             const server = SanServer();
             const result = server.request();
             expect(result).to.be.instanceof(Promise);
             return result;
         });
 
-        it('callback paradigm', (done) => {
+        it('promise paradigm rejects', () => {
+            const server = SanServer();
+            return server.request(5)
+                .then(
+                    () => { throw Error('Should not get here') },
+                    err => expect(err).to.be.instanceof(Error)
+                );
+        });
+
+        it('callback paradigm resolves', (done) => {
             const server = SanServer();
             const result = server.request(function(err, response) {
                 done(err);
             });
             expect(result).to.equal(undefined);
+        });
+
+        it('callback paradigm resolves', (done) => {
+            const server = SanServer();
+            server.request(5, function(err, response) {
+                expect(err).to.be.instanceof(Error);
+                done();
+            });
         });
 
     });
