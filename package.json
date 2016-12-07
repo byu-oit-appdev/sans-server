@@ -27,5 +27,13 @@
     "http-status": "^0.2.3",
     "object-schemata": "^1.0.8",
     "uuid": "^3.0.1"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/byu-oit-appdev/sans-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/byu-oit-appdev/sans-server/issues"
+  },
+  "homepage": "https://github.com/byu-oit-appdev/sans-server#readme"
 }
