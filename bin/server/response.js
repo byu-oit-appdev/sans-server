@@ -24,11 +24,12 @@ module.exports = Response;
 /**
  * @name Response
  * @param {Request} request The request associated with this response.
+ * @param {Object<string,function[]>} handlers, Event handlers.
  * @param {function} callback A function that is called once completed.
  * @returns {Response}
  * @constructor
  */
-function Response(request, callback) {
+function Response(request, handlers, callback) {
     const cookies = {};
     const factory = Object.create(Response.prototype);
     const _headers = {};
@@ -73,6 +74,19 @@ function Response(request, callback) {
     };
 
     /**
+     * Produce a response event. These events can be listened to through the SansServer object.
+     * @param {string} type
+     * @param {*} data
+     */
+    factory.event = function(type, data) {
+        if (handlers.hasOwnProperty(type)) {
+            handlers[type].forEach(function(handler) {
+                handler(data);
+            });
+        }
+    };
+
+    /**
      * Redirect the client to a new URL.
      * @name Response#redirect
      * @param {string} url
@@ -105,7 +119,12 @@ function Response(request, callback) {
         let err = null;
 
         // make sure that the response is only sent once
-        if (sent) throw Error('Response already sent for ' + request.id);
+        if (sent) {
+            const err = Error('Response already sent for ' + request.id);
+            err.code = 'ESSENT';
+            factory.event('error', err);
+            return factory;
+        }
         sent = true;
 
         // figure out what arguments were passed in

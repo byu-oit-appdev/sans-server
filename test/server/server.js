@@ -105,19 +105,25 @@ describe('server/server', () => {
 
     });
 
-    /*describe('response', () => {
+    describe('response', () => {
 
-        it('send twice throws error', (done) => {
+        it('send twice emits error', (done) => {
             const server = SansServer({ middleware: [ function (req, res, next) { res.send('ok'); res.send('fail'); } ]});
-            try {
-                return server.request().then(res => expect(res.statusCode).to.equal(200));
-            } catch (e) {
-                server.request(e.message.indexOf('Response already sent')).to.equal(0);
+            let hadError = false;
+
+            server.on('error', function(err) {
+                expect(err.code).to.equal('ESSENT');
+                hadError = true;
+            });
+
+            server.request().then(res => {
+                expect(res.statusCode).to.equal(200);
+                expect(hadError).to.equal(true);
                 done();
-            }
+            });
         });
 
-    });*/
+    });
 
     describe('timeout', () => {
 

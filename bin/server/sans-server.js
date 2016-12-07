@@ -85,6 +85,7 @@ SansServer.prototype.request = function(request, callback) {
 
         // initialize variables
         const deferred = defer();
+        const handlers = map.get(this).handlers;
         const req = Request(request);
         const start = Date.now();
         let timeoutId;
@@ -115,7 +116,7 @@ SansServer.prototype.request = function(request, callback) {
         });
 
         // build the response handler
-        const res = Response(req, function (err, data) {
+        const res = Response(req, handlers, function (err, data) {
 
             // emit the end event
             const end = Date.now();
