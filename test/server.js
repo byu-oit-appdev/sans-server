@@ -18,7 +18,7 @@
 const expect            = require('chai').expect;
 const SansServer        = require('../bin/server/sans-server');
 
-describe('server/server', () => {
+describe('server', () => {
     SansServer.defaults.logs.silent = true;
 
     describe('paradigms', () => {
