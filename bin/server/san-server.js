@@ -39,10 +39,10 @@ function SanServer(configuration) {
     const factory = Object.create(SanServer.prototype);
 
     // store configuration for this factory
-    map[factory] = {
+    map.set(factory, {
         config: config,
         handlers: {}
-    };
+    });
 
     return factory;
 }
