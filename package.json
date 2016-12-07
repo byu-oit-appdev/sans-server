@@ -1,5 +1,5 @@
 {
-  "name": "node-byu-api",
+  "name": "sans-server",
   "version": "0.0.1",
   "description": "A module that provides a functional server interface for processing requests.",
   "main": "index.js",
