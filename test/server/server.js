@@ -26,7 +26,7 @@ describe('server/server', () => {
         it('promise paradigm', () => {
             const server = SanServer();
             const result = server.request();
-            expect(result).to.be.a(Promise);
+            expect(result).to.be.instanceof(Promise);
             return result;
         });
 
