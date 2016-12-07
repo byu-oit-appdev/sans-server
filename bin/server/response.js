@@ -234,6 +234,16 @@ function Response(request, callback) {
     return factory;
 }
 
+Response.error = function() {
+    return {
+        body: httpStatus[500],
+        cookies: [],
+        headers: { 'Content-Type': 'text/plain' },
+        rawHeaders: 'Content-Type: text/plain',
+        statusCode: 500
+    };
+};
+
 function removeObjectProperties(obj) {
     Object.keys(obj)
         .forEach(function(key) {
