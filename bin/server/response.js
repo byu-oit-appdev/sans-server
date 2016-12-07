@@ -25,7 +25,9 @@ module.exports = Response;
  * @name Response
  * @param {Request} request The request associated with this response.
  * @param {Object<string,function[]>} handlers, Event handlers.
- * @param {function} callback A function that is called once completed.
+ * @param {function} callback A function that is called once completed. The function will receive an error
+ * as its first parameter and the response object as its second parameter. The response object will be provided
+ * regardless of whether an error occurred.
  * @returns {Response}
  * @constructor
  */
@@ -75,6 +77,7 @@ function Response(request, handlers, callback) {
 
     /**
      * Produce a response event. These events can be listened to through the SansServer object.
+     * @name Response#event
      * @param {string} type
      * @param {*} data
      */
@@ -178,6 +181,9 @@ function Response(request, handlers, callback) {
             factory.set('Content-Type', 'application/json');
         }
 
+        // make sure the body is a string
+        if (typeof body !== 'string') body = body.toString();
+
         // freeze the cookies and headers
         Object.keys(cookies).forEach(function(key) { Object.freeze(cookies[key]); });
         Object.freeze(cookies);
@@ -278,7 +284,7 @@ function rawHeaders(headers, cookies) {
         });
     Object.keys(cookies)
         .forEach(function(key) {
-            results.push('Set-Cookie: ' + cookies[key]);
+            results.push('Set-Cookie: ' + cookies[key].serialized);
         });
     return results.join('\n');
 }
