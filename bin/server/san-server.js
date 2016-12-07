@@ -17,62 +17,55 @@
 'use strict';
 const defer                 = require('../async/defer');
 const EventInterface        = require('../event-interface');
+const paradigm              = require('../async/paradigm');
 const prettyPrint           = require('../pretty-print');
 const Request               = require('./request');
 const Response              = require('./response');
 const schemas               = require('./schemas');
 
 const event = EventInterface.firer('server');
+const map = new WeakMap();
 
 module.exports = SanServer;
 
 function SanServer(configuration) {
     const config = schemas.server.normalize(Object.assign({}, copy(SanServer.defaults), configuration || {}));
     const factory = Object.create(SanServer.prototype);
-    const handlers = {};
 
-    // validate method middleware
-    function validateMethod(req, res, next) {
-        if (config.supportedMethods.indexOf(req.method) !== -1) return next();
-        res.sendStatus(405);
+    // store configuration for this factory
+    map[factory] = {
+        config: config,
+        handlers: {}
+    };
+
+    return factory;
+}
+
+/**
+ * Have the server execute a request.
+ * @name SanServer#request
+ * @params {object} request An object that has request details.
+ * @params {function} [callback] The function to call once the request has been processed.
+ * @returns {Promise|undefined}
+ */
+SanServer.prototype.request = function(request, callback) {
+
+    // validate context
+    if (!map.has(this)) {
+        const err = Error('Invalid execution context. Must be an instance of SansServer. Currently: ' + this);
+        err.code = 'ESSCTX';
+        err.context = this;
+        return paradigm(Promise.reject(err), callback);
     }
 
-    /**
-     * Stop listening for an event.
-     * @name SanServer#off
-     * @param {string} type
-     * @param {function} callback
-     */
-    factory.off = function(type, callback) {
-        if (handlers.hasOwnProperty(type)) {
-            const index = handlers[type].indexOf(callback);
-            if (index !== -1) handlers[type].splice(index, 1);
-        }
-    };
-
-    /**
-     * Start listening for an event.
-     * @name SanServer#on
-     * @param {string} type
-     * @param {function} callback
-     */
-    factory.on = function(type, callback) {
-        if (typeof callback !== 'function') throw Error('Invalid handler specified. Expected a function. Received: ' + callback);
-        if (!handlers.hasOwnProperty(type)) handlers[type] = [];
-        if (handlers[type].indexOf(callback) === -1) handlers[type].push(callback);
-    };
-
-    /**
-     * Have the server execute a request.
-     * @name SanServer#request
-     * @params {object} request An object that has request details.
-     * @params {function} [callback] The function to call once the request has been processed.
-     * @returns {Promise|undefined}
-     */
-    factory.request = function(request, callback) {
+    try {
         // get middleware chain
+        const config = map.get(this).config;
         const chain = config.middleware.concat();
-        chain.unshift(validateMethod);
+        chain.unshift(function(req, res, next) {
+            if (config.supportedMethods.indexOf(req.method) !== -1) return next();
+            res.sendStatus(405);
+        });
         chain.push(unhandled);
 
         // initialize variables
@@ -84,7 +77,7 @@ function SanServer(configuration) {
         // listen for events related the the processing of the request
         const queue = config.logs.grouped ? [] : null;
         let prev = start;
-        EventInterface.on(req, function(firer, action, message, event) {
+        EventInterface.on(req, function (firer, action, message, event) {
             if (!config.logs.silent) {
                 const now = Date.now();
                 const data = {
@@ -129,7 +122,9 @@ function SanServer(configuration) {
                     '\n  Start: ' + new Date(start).toISOString() +
                     '\n  Duration: ' + prettyPrint.seconds(duration) +
                     '\n  Events:\n    ' +
-                    queue.map(function(data) { return eventMessage(config.logs, data); }).join('\n    ');
+                    queue.map(function (data) {
+                        return eventMessage(config.logs, data);
+                    }).join('\n    ');
                 console.log(log);
             }
 
@@ -150,7 +145,7 @@ function SanServer(configuration) {
             time: start
         });
 
-        timeoutId = setTimeout(function() {
+        timeoutId = setTimeout(function () {
             if (!res.sent) res.sendStatus(408);
         }, 1000 * config.timeout);
 
@@ -158,12 +153,81 @@ function SanServer(configuration) {
         run(chain, req, res);
 
         // return the result
-        if (typeof callback !== 'function') return deferred.promise;
-        deferred.promise.then(function(data) { callback(data) });
-    };
+        return paradigm(deferred.promise, callback);
 
-    return factory;
-}
+    } catch (err) {
+        return paradigm(Promise.reject(err), callback);
+    }
+};
+
+
+
+/**
+ * Stop listening for an event.
+ * @name SanServer#off
+ * @param {string} type
+ * @param {function} callback
+ */
+SanServer.prototype.off = function(type, callback) {
+
+    // validate context
+    if (!map.has(this)) {
+        const err = Error('Invalid execution context. Must be an instance of SansServer. Currently: ' + this);
+        err.code = 'ESSCTX';
+        err.context = this;
+        throw err;
+    }
+
+    const handlers = map.get(this).handlers;
+    if (handlers.hasOwnProperty(type)) {
+        const index = handlers[type].indexOf(callback);
+        if (index !== -1) handlers[type].splice(index, 1);
+    }
+};
+
+/**
+ * Start listening for an event.
+ * @name SanServer#on
+ * @param {string} type
+ * @param {function} callback
+ */
+SanServer.prototype.on = function(type, callback) {
+
+    // validate context
+    if (!map.has(this)) {
+        const err = Error('Invalid execution context. Must be an instance of SansServer. Currently: ' + this);
+        err.code = 'ESSCTX';
+        err.context = this;
+        throw err;
+    }
+
+    const handlers = map.get(this).handlers;
+    if (typeof callback !== 'function') throw Error('Invalid handler specified. Expected a function. Received: ' + callback);
+    if (!handlers.hasOwnProperty(type)) handlers[type] = [];
+    if (handlers[type].indexOf(callback) === -1) handlers[type].push(callback);
+};
+
+/**
+ * Specify a middleware to use.
+ * @param {function} middleware...
+ */
+SanServer.prototype.use = function(middleware) {
+
+    // validate context
+    if (!map.has(this)) {
+        const err = Error('Invalid execution context. Must be an instance of SansServer. Currently: ' + this);
+        err.code = 'ESSCTX';
+        err.context = this;
+        throw err;
+    }
+
+    const config = map.get(this).config;
+    for (let i = 0; i < arguments.length; i++) {
+        const mw = arguments[i];
+        if (typeof mw !== 'function') throw Error('Invalid middleware specified. Expected a function. Received: ' + mw);
+        config.middleware.push(mw);
+    }
+};
 
 SanServer.defaults = {
     logs: {
@@ -233,7 +297,7 @@ function run(chain, req, res) {
 }
 
 /**
- *
+ * Built in middleware to handle any requests that fall through unhandled.
  * @param {Request} req
  * @param {Response} res
  */
