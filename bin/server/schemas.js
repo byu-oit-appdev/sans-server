@@ -113,24 +113,6 @@ function copyObject(v) {
     return Object.assign({}, v);
 }
 
-function isFunction(v) {
-    return typeof v === 'function'
-}
-
-function isNonEmptyString(v) {
-    return typeof v === 'string' && v.length > 0;
-}
-
-function isOneOf(values) {
-    return function(v) {
-        return values.indexOf(v) !== -1;
-    }
-}
-
-function isUrl(v) {
-    return rxUrl.test(v);
-}
-
 function isObjectKeyValueString(v) {
     if (!v || typeof v !== 'object') return false;
 
@@ -142,8 +124,3 @@ function isObjectKeyValueString(v) {
 
     return true;
 }
-
-function toBoolean(v) {
-    return !!v;
-}
-
