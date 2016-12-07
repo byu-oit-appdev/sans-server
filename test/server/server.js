@@ -16,57 +16,77 @@
  **/
 'use strict';
 const expect            = require('chai').expect;
-const SanServer         = require('../../bin/server/san-server');
+const SansServer        = require('../../bin/server/sans-server');
 
 describe('server/server', () => {
-    SanServer.defaults.logs.silent = true;
+    SansServer.defaults.logs.silent = true;
 
     describe('paradigms', () => {
 
         it('promise paradigm resolves', () => {
-            const server = SanServer();
+            const server = SansServer();
             const result = server.request();
             expect(result).to.be.instanceof(Promise);
             return result;
         });
 
-        it('promise paradigm rejects', () => {
-            const server = SanServer();
-            return server.request(5)
-                .then(
-                    () => { throw Error('Should not get here') },
-                    err => expect(err).to.be.instanceof(Error)
-                );
+        it('promise paradigm context error', () => {
+            const server = SansServer();
+            return server.request.call(this, 5)
+                .then(res => {
+                    expect(res.error).to.be.instanceOf(Error);
+                    expect(res.error.code).to.equal('ESSCTX');
+                });
+        });
+
+        it('promise paradigm request error', () => {
+            const server = SansServer();
+            return server.request({ method: 5 })
+                .then(res => {
+                    expect(res.error).to.be.instanceOf(Error);
+                });
         });
 
         it('callback paradigm resolves', (done) => {
-            const server = SanServer();
-            const result = server.request(function(err, response) {
-                done(err);
+            const server = SansServer();
+            const result = server.request(function(response) {
+                expect(response).to.not.haveOwnProperty('error');
+                done();
             });
             expect(result).to.equal(undefined);
         });
 
-        it('callback paradigm resolves', (done) => {
-            const server = SanServer();
-            server.request(5, function(err, response) {
-                expect(err).to.be.instanceof(Error);
+        it('callback paradigm rejects', (done) => {
+            const server = SansServer();
+            server.request(5, function(response) {
+                expect(response.error).to.be.instanceof(Error);
                 done();
             });
         });
 
     });
 
-    /*describe('methods', () => {
+    describe('methods', () => {
 
         it('allows GET', () => {
-            const serve = Server();
-            return serve({ method: 'GET'}).then(res => expect(res.statusCode).to.equal(400));
+            const server = SansServer();
+            return server.request({ method: 'GET'}).then(res => expect(res.statusCode).to.equal(400));
         });
 
         it('does not allow FOO', () => {
-            const serve = Server();
-            return serve({ method: 'FOO'}).then(res => expect(res.statusCode).to.equal(405));
+            const server = SansServer();
+            return server.request({ method: 'FOO'}).then(res => expect(res.statusCode).to.equal(405));
+        });
+
+        it('string defaults to GET', (done) => {
+            const path = '/foo/bar';
+            const mw = function(req, res, next) {
+                expect(req.method).to.equal('GET');
+                expect(req.url).to.equal(path);
+                done();
+            };
+            const server = SansServer({ middleware: [ mw ]});
+            server.request(path);
         });
 
     });
@@ -74,38 +94,38 @@ describe('server/server', () => {
     describe('middleware', () => {
 
         it('can throw error', () => {
-            const serve = Server({ middleware: [ function fail(req, res, next) { throw Error('Fail'); } ]});
-            return serve().then(res => expect(res.statusCode).to.equal(500));
+            const server = SansServer({ middleware: [ function fail(req, res, next) { throw Error('Fail'); } ]});
+            return server.request().then(res => expect(res.statusCode).to.equal(500));
         });
 
         it('can next error', () => {
-            const serve = Server({ middleware: [ function fail(req, res, next) { next(Error('Fail')); } ]});
-            return serve().then(res => expect(res.statusCode).to.equal(500));
+            const server = SansServer({ middleware: [ function fail(req, res, next) { next(Error('Fail')); } ]});
+            return server.request().then(res => expect(res.statusCode).to.equal(500));
         });
 
     });
 
-    describe('response', () => {
+    /*describe('response', () => {
 
         it('send twice throws error', (done) => {
-            const serve = Server({ middleware: [ function (req, res, next) { res.send('ok'); res.send('fail'); } ]});
+            const server = SansServer({ middleware: [ function (req, res, next) { res.send('ok'); res.send('fail'); } ]});
             try {
-                serve().then(res => expect(res.statusCode).to.equal(200));
+                return server.request().then(res => expect(res.statusCode).to.equal(200));
             } catch (e) {
-                expect(e.message.indexOf('Response already sent')).to.equal(0);
+                server.request(e.message.indexOf('Response already sent')).to.equal(0);
                 done();
             }
         });
 
-    });
+    });*/
 
     describe('timeout', () => {
 
         it('can timeout', () => {
-            const serve = Server({ middleware: [ function timeout(req, res, next) { } ], timeout: .5 });
-            return serve().then(res => expect(res.statusCode).to.equal(408));
+            const server = SansServer({ middleware: [ function timeout(req, res, next) { } ], timeout: .5 });
+            return server.request().then(res => expect(res.statusCode).to.equal(408));
         });
 
-    });*/
+    });
 
 });

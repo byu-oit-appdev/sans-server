@@ -17,7 +17,6 @@
 'use strict';
 const defer                 = require('../async/defer');
 const EventInterface        = require('../event-interface');
-const paradigm              = require('../async/paradigm');
 const prettyPrint           = require('../pretty-print');
 const Request               = require('./request');
 const Response              = require('./response');
@@ -26,17 +25,17 @@ const schemas               = require('./schemas');
 const event = EventInterface.firer('server');
 const map = new WeakMap();
 
-module.exports = SanServer;
+module.exports = SansServer;
 
 /**
  * Create a san-server instance.
  * @param configuration
- * @returns {SanServer}
+ * @returns {SansServer}
  * @constructor
  */
-function SanServer(configuration) {
-    const config = schemas.server.normalize(Object.assign({}, copy(SanServer.defaults), configuration || {}));
-    const factory = Object.create(SanServer.prototype);
+function SansServer(configuration) {
+    const config = schemas.server.normalize(Object.assign({}, copy(SansServer.defaults), configuration || {}));
+    const factory = Object.create(SansServer.prototype);
 
     // store configuration for this factory
     map.set(factory, {
@@ -49,12 +48,12 @@ function SanServer(configuration) {
 
 /**
  * Have the server execute a request.
- * @name SanServer#request
+ * @name SansServer#request
  * @params {object|string} [request={}] An object that has request details or a string that is a GET endpoint.
  * @params {function} [callback] The function to call once the request has been processed.
  * @returns {Promise|undefined}
  */
-SanServer.prototype.request = function(request, callback) {
+SansServer.prototype.request = function(request, callback) {
     // handle argument variations
     if (arguments.length === 0) {
         request = {};
@@ -71,10 +70,7 @@ SanServer.prototype.request = function(request, callback) {
         const err = Error('Invalid execution context. Must be an instance of SansServer. Currently: ' + this);
         err.code = 'ESSCTX';
         err.context = this;
-
-        const res = Response.error();
-        res.error = err;
-        return paradigm(Promise.resolve(res), callback);
+        return paradigm(Promise.reject(err), callback);
     }
 
     try {
@@ -175,9 +171,7 @@ SanServer.prototype.request = function(request, callback) {
         return paradigm(deferred.promise, callback);
 
     } catch (err) {
-        const res = Response.error();
-        res.error = err;
-        return paradigm(Promise.resolve(res), callback);
+        return paradigm(Promise.reject(err), callback);
     }
 };
 
@@ -185,11 +179,11 @@ SanServer.prototype.request = function(request, callback) {
 
 /**
  * Stop listening for an event.
- * @name SanServer#off
+ * @name SansServer#off
  * @param {string} type
  * @param {function} callback
  */
-SanServer.prototype.off = function(type, callback) {
+SansServer.prototype.off = function(type, callback) {
 
     // validate context
     if (!map.has(this)) {
@@ -208,11 +202,11 @@ SanServer.prototype.off = function(type, callback) {
 
 /**
  * Start listening for an event.
- * @name SanServer#on
+ * @name SansServer#on
  * @param {string} type
  * @param {function} callback
  */
-SanServer.prototype.on = function(type, callback) {
+SansServer.prototype.on = function(type, callback) {
 
     // validate context
     if (!map.has(this)) {
@@ -232,7 +226,7 @@ SanServer.prototype.on = function(type, callback) {
  * Specify a middleware to use.
  * @param {function} middleware...
  */
-SanServer.prototype.use = function(middleware) {
+SansServer.prototype.use = function(middleware) {
 
     // validate context
     if (!map.has(this)) {
@@ -250,7 +244,7 @@ SanServer.prototype.use = function(middleware) {
     }
 };
 
-SanServer.defaults = {
+SansServer.defaults = {
     logs: {
         duration: false,
         grouped: true,
@@ -279,7 +273,7 @@ function copy(obj) {
 
 /**
  * Produce a consistent message from event data.
- * @param {object} config SanServer logs configuration.
+ * @param {object} config SansServer logs configuration.
  * @param {object} data
  * @returns {string}
  */
@@ -292,6 +286,19 @@ function eventMessage(config, data) {
         (config.duration ? '@' + prettyPrint.seconds(data.duration) + '  ' : '') +
         data.message +
         (config.verbose ? '\n\t' + JSON.stringify(data.event, null, '  ').replace(/^/gm, '\t') : '');
+}
+
+function paradigm(promise, callback) {
+    const p = promise.then(
+        function(res) { return res },
+        function(err) {
+            const res = Response.error();
+            res.error = err;
+            return res;
+        }
+    );
+    if (typeof callback !== 'function') return p;
+    p.then(function(res) { callback(res); });
 }
 
 /**
