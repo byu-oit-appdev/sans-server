@@ -66,6 +66,14 @@ describe('server', () => {
 
     });
 
+    describe('logger', () => {
+
+        it('returns function', () => {
+            expect(SansServer.logger('foo')).to.be.a('function');
+        });
+
+    });
+
     describe('methods', () => {
 
         it('allows GET', () => {
