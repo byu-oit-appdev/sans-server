@@ -15,8 +15,8 @@
  *    limitations under the License.
  **/
 'use strict';
-const schemas           = require('./schemas');
-const uuid              = require('../uuid');
+const schemas               = require('./schemas');
+const uuid                  = require('../uuid');
 
 module.exports = Request;
 

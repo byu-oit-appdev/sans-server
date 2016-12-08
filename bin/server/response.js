@@ -16,22 +16,22 @@
  **/
 'use strict';
 const cookie                = require('cookie');
-const event                 = require('../event-interface').firer('response');
+const emitter               = require('../emitter');
 const httpStatus            = require('http-status');
+const log                   = require('./log').firer('response');
 
 module.exports = Response;
 
 /**
  * @name Response
  * @param {Request} request The request associated with this response.
- * @param {Object<string,function[]>} handlers, Event handlers.
  * @param {function} callback A function that is called once completed. The function will receive an error
  * as its first parameter and the response object as its second parameter. The response object will be provided
  * regardless of whether an error occurred.
  * @returns {Response}
  * @constructor
  */
-function Response(request, handlers, callback) {
+function Response(request, callback) {
     const cookies = {};
     const factory = Object.create(Response.prototype);
     const _headers = {};
@@ -66,27 +66,13 @@ function Response(request, handlers, callback) {
             value: value
         };
         
-        event(request, 'set-cookie', name + ': ' + cookies[name], {
+        log(request, 'set-cookie', name + ': ' + cookies[name], {
             name: name,
             options: options,
             serialized: cookies[name],
             value: value
         });
         return factory;
-    };
-
-    /**
-     * Produce a response event. These events can be listened to through the SansServer object.
-     * @name Response#event
-     * @param {string} type
-     * @param {*} data
-     */
-    factory.event = function(type, data) {
-        if (handlers.hasOwnProperty(type)) {
-            handlers[type].forEach(function(handler) {
-                handler(data);
-            });
-        }
     };
 
     /**
@@ -125,7 +111,7 @@ function Response(request, handlers, callback) {
         if (sent) {
             const err = Error('Response already sent for ' + request.id);
             err.code = 'ESSENT';
-            factory.event('error', err);
+            emitter.emit('error', err);
             return factory;
         }
         sent = true;
@@ -160,7 +146,7 @@ function Response(request, handlers, callback) {
         // if the body is an Error then set the status code to 500
         if (body instanceof Error) {
             err = body;
-            event(request, 'error', err.message, {
+            log(request, 'error', err.message, {
                 message: err.message,
                 stack: err.stack
             });
@@ -169,8 +155,8 @@ function Response(request, handlers, callback) {
             body = httpStatus[500];
             removeObjectProperties(_headers);
             removeObjectProperties(cookies);
-            event(request, 'reset-headers', 'All headers reset.', {});
-            event(request, 'reset-cookies', 'All cookies reset.', {});
+            log(request, 'reset-headers', 'All headers reset.', {});
+            log(request, 'reset-cookies', 'All cookies reset.', {});
             factory.set('Content-Type', 'text/plain');
             factory.status(500);
         }
@@ -192,7 +178,7 @@ function Response(request, handlers, callback) {
         // call the callback and fire an event
         const rawHeaderString = rawHeaders(_headers, cookies);
         const subBody = body.substr(0, 25);
-        event(request, 'sent', body === subBody ? body : subBody + '...', {
+        log(request, 'sent', body === subBody ? body : subBody + '...', {
             body: body,
             cookies: cookies,
             headers: _headers,
@@ -235,7 +221,7 @@ function Response(request, handlers, callback) {
             })
             .join('-');
         _headers[key] = '' + value;
-        event(request, 'set-header', key + ': ' + value, {
+        log(request, 'set-header', key + ': ' + value, {
             header: key,
             value: value
         });
@@ -250,7 +236,7 @@ function Response(request, handlers, callback) {
      */
     factory.status = function(code) {
         statusCode = code;
-        event(request, 'set-status', code, {
+        log(request, 'set-status', code, {
             statusCode: code
         });
         return factory;

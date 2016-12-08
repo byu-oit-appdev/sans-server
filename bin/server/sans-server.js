@@ -15,14 +15,16 @@
  *    limitations under the License.
  **/
 'use strict';
+const deepMerge             = require('deepmerge');
 const defer                 = require('../async/defer');
-const EventInterface        = require('../event-interface');
+const emitter               = require('../emitter');
+const Log                   = require('./log');
 const prettyPrint           = require('../pretty-print');
 const Request               = require('./request');
 const Response              = require('./response');
 const schemas               = require('./schemas');
 
-const event = EventInterface.firer('server');
+const event = Log.firer('server');
 const map = new WeakMap();
 
 module.exports = SansServer;
@@ -34,13 +36,22 @@ module.exports = SansServer;
  * @constructor
  */
 function SansServer(configuration) {
-    const config = schemas.server.normalize(Object.assign({}, copy(SansServer.defaults), configuration || {}));
+    const merged = deepMerge(SansServer.defaults, configuration || {}, {
+        arrayMerge: function(dest, src) {
+            const copy = dest.slice();
+            src.forEach(function(item) {
+                if (copy.indexOf(src) === -1) copy.push(item);
+            });
+            return copy;
+        },
+        clone: true
+    });
+    const config = schemas.server.normalize(merged);
     const factory = Object.create(SansServer.prototype);
 
     // store configuration for this factory
     map.set(factory, {
-        config: config,
-        handlers: {}
+        config: config
     });
 
     return factory;
@@ -85,7 +96,6 @@ SansServer.prototype.request = function(request, callback) {
 
         // initialize variables
         const deferred = defer();
-        const handlers = map.get(this).handlers;
         const req = Request(request);
         const start = Date.now();
         let timeoutId;
@@ -93,7 +103,7 @@ SansServer.prototype.request = function(request, callback) {
         // listen for events related the the processing of the request
         const queue = config.logs.grouped ? [] : null;
         let prev = start;
-        EventInterface.on(req, function (firer, action, message, event) {
+        Log.on(req, function (firer, action, message, event) {
             if (!config.logs.silent) {
                 const now = Date.now();
                 const data = {
@@ -116,7 +126,7 @@ SansServer.prototype.request = function(request, callback) {
         });
 
         // build the response handler
-        const res = Response(req, handlers, function (err, data) {
+        const res = Response(req, function (err, data) {
 
             // emit the end event
             const end = Date.now();
@@ -128,7 +138,7 @@ SansServer.prototype.request = function(request, callback) {
             });
 
             // turn off event handling
-            EventInterface.off(req);
+            Log.off(req);
 
             // if grouped logging then log the events to the console now
             if (queue && !config.logs.silent) {
@@ -176,53 +186,6 @@ SansServer.prototype.request = function(request, callback) {
     }
 };
 
-
-
-/**
- * Stop listening for an event.
- * @name SansServer#off
- * @param {string} type
- * @param {function} callback
- */
-SansServer.prototype.off = function(type, callback) {
-
-    // validate context
-    if (!map.has(this)) {
-        const err = Error('Invalid execution context. Must be an instance of SansServer. Currently: ' + this);
-        err.code = 'ESSCTX';
-        err.context = this;
-        throw err;
-    }
-
-    const handlers = map.get(this).handlers;
-    if (handlers.hasOwnProperty(type)) {
-        const index = handlers[type].indexOf(callback);
-        if (index !== -1) handlers[type].splice(index, 1);
-    }
-};
-
-/**
- * Start listening for an event.
- * @name SansServer#on
- * @param {string} type
- * @param {function} callback
- */
-SansServer.prototype.on = function(type, callback) {
-
-    // validate context
-    if (!map.has(this)) {
-        const err = Error('Invalid execution context. Must be an instance of SansServer. Currently: ' + this);
-        err.code = 'ESSCTX';
-        err.context = this;
-        throw err;
-    }
-
-    const handlers = map.get(this).handlers;
-    if (typeof callback !== 'function') throw Error('Invalid handler specified. Expected a function. Received: ' + callback);
-    if (!handlers.hasOwnProperty(type)) handlers[type] = [];
-    if (handlers[type].indexOf(callback) === -1) handlers[type].push(callback);
-};
-
 /**
  * Specify a middleware to use.
  * @param {function} middleware...
@@ -245,6 +208,10 @@ SansServer.prototype.use = function(middleware) {
     }
 };
 
+/**
+ * THe server configuration defaults to use when instantiating an instance.
+ * @type {{logs: {duration: boolean, grouped: boolean, silent: boolean, timeDiff: boolean, timeStamp: boolean, verbose: boolean}, middleware: Array, supportedMethods: (*), timeout: number}}
+ */
 SansServer.defaults = {
     logs: {
         duration: false,
@@ -260,17 +227,10 @@ SansServer.defaults = {
 };
 
 /**
- * Make a simple object copy.
- * @param {object} obj
- * @returns {{}}
+ * Expose the server emitter to allow emitting of events and adding or removing event listeners.
+ * @type {Emitter}
  */
-function copy(obj) {
-    try {
-        return JSON.parse(JSON.stringify(obj));
-    } catch (e) {
-        return {};
-    }
-}
+SansServer.emitter = emitter;
 
 /**
  * Produce a consistent message from event data.
@@ -289,6 +249,12 @@ function eventMessage(config, data) {
         (config.verbose ? '\n\t' + JSON.stringify(data.event, null, '  ').replace(/^/gm, '\t') : '');
 }
 
+/**
+ * Handle callback or promise paradigm.
+ * @param {Promise} promise
+ * @param {Function|undefined} callback
+ * @returns {Promise|undefined}
+ */
 function paradigm(promise, callback) {
     const p = promise.then(
         function(res) { return res },

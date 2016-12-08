@@ -24,7 +24,7 @@ describe('server', () => {
     describe('paradigms', () => {
 
         it('promise paradigm resolves', () => {
-            const server = SansServer();
+            const server = SansServer({ logs: { silent: false }});  // non-silent for code coverage
             const result = server.request();
             expect(result).to.be.instanceof(Promise);
             return result;
@@ -48,7 +48,7 @@ describe('server', () => {
         });
 
         it('callback paradigm resolves', (done) => {
-            const server = SansServer();
+            const server = SansServer({ logs: { silent: false, grouped: false }}); // non-silent and non-grouped for code coverage
             const result = server.request(function(response) {
                 expect(response).to.not.haveOwnProperty('error');
                 done();
@@ -103,6 +103,23 @@ describe('server', () => {
             return server.request().then(res => expect(res.statusCode).to.equal(500));
         });
 
+        it('can be added after init', () => {
+            const server = SansServer();
+            server.use(function(req, res, next) {
+                res.send('ok');
+            });
+            return server.request().then(res => expect(res.body).to.equal('ok'));
+        });
+
+        it('can throw context error', () => {
+            const server = SansServer();
+            expect(function() {
+                server.use.call({}, function(req, res, next) {
+                    res.send('ok');
+                });
+            }).to.throw(Error);
+        });
+
     });
 
     describe('requests', () => {
@@ -124,8 +141,10 @@ describe('server', () => {
                     expect(req.method).to.equal(request.method);
                     expect(req.path).to.equal(request.path);
                     expect(req.query.q1).to.equal(request.query.q1);
+                    next();
                     done();
                 } catch (e) {
+                    next();
                     done(e);
                 }
             };
@@ -142,7 +161,7 @@ describe('server', () => {
             const server = SansServer({ middleware: [ function (req, res, next) { res.send('ok'); res.send('fail'); } ]});
             let hadError = false;
 
-            server.on('error', function(err) {
+            SansServer.emitter.on('error', function(err) {
                 expect(err.code).to.equal('ESSENT');
                 hadError = true;
             });
