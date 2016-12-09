@@ -1,7 +1,7 @@
 {
   "name": "sans-server",
-  "version": "0.0.1",
-  "description": "A module that provides a functional server interface for processing requests.",
+  "version": "0.0.2",
+  "description": "Write code for a server, without the server.",
   "main": "index.js",
   "bin": {
     "node-byu-api": "pretty-print.js"
