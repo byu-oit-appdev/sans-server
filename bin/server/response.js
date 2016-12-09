@@ -19,6 +19,7 @@ const cookie                = require('cookie');
 const emitter               = require('../emitter');
 const httpStatus            = require('http-status');
 const log                   = require('./log').firer('response');
+const prettyPrint           = require('../pretty-print');
 
 module.exports = Response;
 
@@ -214,12 +215,7 @@ function Response(request, callback) {
      * @returns {Response}
      */
     factory.set = function(key, value) {
-        key = key
-            .split('-')
-            .map(function(v) {
-                return v.substr(0, 1).toUpperCase() + v.substr(1).toLowerCase()
-            })
-            .join('-');
+        key = prettyPrint.headerCase(key);
         _headers[key] = '' + value;
         log(request, 'set-header', key + ': ' + value, {
             header: key,

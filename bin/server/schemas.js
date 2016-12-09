@@ -15,7 +15,8 @@
  *    limitations under the License.
  **/
 'use strict';
-const schemata      = require('object-schemata');
+const prettyPrint           = require('../pretty-print');
+const schemata              = require('object-schemata');
 
 const rxUrl = /^https?:\/\/[\s\S]{1,}?(?::\d+)?(?:\/[\s\S]+?)?$/;
 
@@ -30,7 +31,8 @@ exports.request = schemata({
         transform: function(v) {
             const copy = {};
             Object.keys(v).forEach(function(key) {
-                copy[key.toLowerCase()] = v[key];
+                const newKey = prettyPrint.headerCase(key);
+                copy[newKey] = v[key];
             });
             return copy;
         },
