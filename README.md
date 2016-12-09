@@ -26,6 +26,66 @@ server.request(function(response) {
 });
 ```
 
+### Create Middleware
+
+There is a lot of middleware out there that may already do what you want, but if not it is easy to write your own middleware.
+
+A connect middleware is a function that takes three parameters: 1) the [request object](#request), 2) the [response object](#response), 3) the next function.
+
+Common uses of middleware include:
+
+- Sending a response
+- Modifying the request or response objects
+- Adding to the response
+
+Middleware is most often used to either send a response or to modify the request or response objects. If the middleware does send a request then you're done, otherwise it must call the `next` function otherwise the request will go unfulfilled and will timeout.
+
+```js
+function terminalMiddleware(req, res, next) {
+    res.send('OK');     // response sent
+}
+
+function modifyingMiddleware(req, res, next) {
+    req.body = req.body.toLowerCase();
+    next();
+}
+
+function addToResponseMiddleware(req, res, next) {
+    res.set('X-Served-By', 'Sans-Server');
+    next();     // middleware done, but response not sent
+}
+
+function errorEncounteredMiddleware(req, res, next) {
+    next(Error('Something went wrong');
+}
+```
+
+### Use Middleware
+
+There are two ways to specify middleware to use:
+
+1. Include it in the configuration when you [create the SansServer instance](#sansserver--configuration--object---sansserver)
+
+    ```js
+    const SansServer = require('sans-server');
+    const server = SansServer({
+        middleware:  function(res, res, next) {
+            // do something
+            next();
+        }
+    });
+    ```
+
+2. [Add it to an existing SansServer instance](#use--middleware--function---undefined).
+
+    ```js
+    const server = SansServer();
+    server.use(function(req, res, next) {
+        // do something
+        next();
+    });
+    ```
+
 ### Double-Send Error
 
 If a request is made and for some reason a response is sent twice, the second response will produce an error that can only be detected using the [SansServer Emitter](#sansserver-emitter).
@@ -147,7 +207,7 @@ Send the response. A response can only be sent once.
 
 **Parameters**
 
-- *code* - The status code to send with the response. If omitted then it will use the last [set status code](#) or if no status code has been set will default to `200`.
+- *code* - The status code to send with the response. If omitted then it will use the last [set status code](#status--code-number---response) or if no status code has been set will default to `200`.
 
 - *body* - A string, an Object, or an Error to send. If an object then a header `Content-Type: application/json` will automatically be set. If an Error then all headers and cookies will be wiped, the header `Content-Type: text/plain` will be set, the body content will be 'Internal Server Error', and the `error` property will be added to the [response object](#response-object) with the Error provided. If omitted then the body will be an empty string.
 
