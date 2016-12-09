@@ -78,7 +78,7 @@ describe('server', () => {
 
         it('allows GET', () => {
             const server = SansServer();
-            return server.request({ method: 'GET'}).then(res => expect(res.statusCode).to.equal(400));
+            return server.request({ method: 'GET'}).then(res => expect(res.statusCode).to.equal(404));
         });
 
         it('does not allow FOO', () => {
@@ -131,6 +131,51 @@ describe('server', () => {
     });
 
     describe('requests', () => {
+
+        it('auto parse json string', done => {
+            const request = {
+                body: JSON.stringify({ foo: 'bar' }),
+                headers: { 'content-type': 'application/json' }
+            };
+
+            const mw = function (req, res, next) {
+                try {
+                    expect(req.body).to.be.an('object');
+                    expect(req.body).to.deep.equal({foo: 'bar'});
+                    done();
+                } catch (e) {
+                    done(e);
+                }
+            };
+
+            const server = SansServer({ middleware: [ mw ]});
+            server.request(request);
+        });
+
+        it('invalid json string', () => {
+            const request = {
+                body: 'foo-bar',
+                headers: { 'content-type': 'application/json' }
+            };
+
+            const server = SansServer();
+            return server.request(request).then(function(res) {
+                expect(res.statusCode).to.equal(400);
+            });
+        });
+
+        it('body is object', done => {
+            const request = {
+                body: {},
+                headers: { 'content-type': 'application/json' }
+            };
+
+            const server = SansServer({ middleware: [ function(req, res, next) {
+                expect(req.body).to.equal(request.body);
+                done();
+            }]});
+            return server.request(request);
+        });
 
         it('processes request', (done) => {
             const request = {
