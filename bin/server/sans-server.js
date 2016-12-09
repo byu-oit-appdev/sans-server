@@ -301,5 +301,5 @@ function run(chain, req, res) {
  * @param {Response} res
  */
 function unhandled(req, res) {
-    res.sendStatus(400);
+    res.sendStatus(404);
 }
