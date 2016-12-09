@@ -10,8 +10,7 @@
     "test": "test"
   },
   "scripts": {
-    "test": "nyc mocha test/**/*.js && nyc report --reporter=text-lcov | coveralls",
-    "test-local": "nyc mocha test/**/*.js"
+    "test": "nyc mocha test/**/*.js"
   },
   "keywords": [
     "server"
@@ -20,7 +19,6 @@
   "license": "Apache-2.0",
   "devDependencies": {
     "chai": "^3.5.0",
-    "coveralls": "^2.11.15",
     "mocha": "^3.2.0",
     "nyc": "^10.0.0"
   },
