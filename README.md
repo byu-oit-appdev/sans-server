@@ -98,9 +98,9 @@ Construct a SansServer instance.
 
     - *query* - An object with keys and string values that represent the query string parameters. Defaults to `{}`.
 
-- *callback* - An optional function that will be called with the [response object](#).
+- *callback* - An optional function that will be called with the [response object](#response-object).
 
-**Returns** a Promise that is never rejected. The resolved promise will resolve to a [response object](#).
+**Returns** a Promise that is never rejected. The resolved promise will resolve to a [response object](#response-object).
 
 ```js
 const server = SansServer({
@@ -228,3 +228,7 @@ module.exports = function requestCounter (req, res, next) {
     next();
 };
 ```
+
+## Response Object
+
+TODO
