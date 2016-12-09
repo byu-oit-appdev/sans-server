@@ -36,10 +36,30 @@ exports.addCharacters = function (value, ch, after, length) {
     return result;
 };
 
+/**
+ * Set a string to a specific length by either adding space or trimming the end.
+ * @param {string} str
+ * @param {number} length
+ * @returns {string}
+ */
 exports.fixedLength = function(str, length) {
     str += '                                                                                        ';
     if (str.length > length) str = str.substr(0, length);
     return str;
+};
+
+/**
+ * Get header case equivalent of string.
+ * @param {string} str
+ * @returns {string}
+ */
+exports.headerCase = function(str) {
+    return str
+        .split('-')
+        .map(function(v) {
+            return v.substr(0, 1).toUpperCase() + v.substr(1).toLowerCase()
+        })
+        .join('-');
 };
 
 /**
