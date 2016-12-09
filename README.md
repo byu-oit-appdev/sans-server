@@ -52,6 +52,141 @@ server.request();
 
 ## API
 
+### Request
+
+Each middleware created receives a response object and a request object. Middleware is the only way to access the request object. The request object has the following properties:
+
+- *body* - The body of the request. This may be a string or a plain object.
+
+- *headers* - An object with the defined headers.
+
+- *id* - A string that uniquely identifies this request.
+
+- *method* - The HTTP method.
+
+- *path* - The path without query string.
+
+- *query* - An object with the defined query string parameters.
+
+- *url* - A string that shows the path plus query string parameters.
+
+```js
+function echoMethodMiddleware(req, res, next) {
+    res.send('Used method: ' + req.method);
+}
+```
+
+### Response
+
+Each middleware created receives a response object and a request object. Middleware is the only way to make the Sans-Server do what you want it to. These are the methods available on an instance of the core response object.
+
+### #clearCookie ( name : String [, options : Object ] ) : Response
+
+Set a header that will tell the browser to clear the cookie specified.
+
+**Parameters**
+
+- *name* - The name of the cookie to clear.
+
+- *options* - The options applied to the cookie. For example, the `path` and `domain` options for the cookie being cleared must match the existing cookie otherwise the existing cookie will not be cleared. For a full list of options, refer to the [cookie module](https://www.npmjs.com/package/cookie).
+
+**Returns** a [Response object](#response) for chaining.
+
+```js
+function myMiddleware(req, res, next) {
+    res.clearCookie('foo');
+    next();
+}
+```
+
+### #cookie ( name : String, value : String [, options: Object ] ) : Response
+
+Set a header that will tell the browser to store the specified cookie and value.
+
+**Parameters**
+
+- *name* - The name of the cookie to set.
+
+- *value* - The cookie value to set.
+
+- *options* - The options to apply to the cookie. For a full list of options, refer to the [cookie module](https://www.npmjs.com/package/cookie).
+
+**Returns** a [Response object](#response) for chaining.
+
+```js
+function myMiddleware(req, res, next) {
+    res.cookie('foo', 'bar');
+    next();
+}
+```
+
+### #redirect ( url: String ) : Response
+
+Tell the browser to redirect to a different URL. Calling this function will cause the response to be sent.
+
+**Parameters**
+
+- *url* - The URL to redirect to.
+
+**Returns** a [Response object](#response) for chaining.
+
+```js
+function myMiddleware(req, res, next) {
+    res.redirect('http://some-url.com');
+    next();
+}
+```
+
+### #sent
+
+Get whether the response has already been sent. This can be useful because a response cannot be sent twice.
+
+### #send ( [ code : Number, ] [ body: * ] [, headers : Object ] ) : Response
+
+Send the response. A response can only be sent once.
+
+**Parameters**
+
+- *code* - The status code to send with the response. If omitted then it will use the last [set status code](#) or if no status code has been set will default to `200`.
+
+- *body* - A string, an Object, or an Error to send. If an object then a header `Content-Type: application/json` will automatically be set. If an Error then all headers and cookies will be wiped, the header `Content-Type: text/plain` will be set, the body content will be 'Internal Server Error', and the `error` property will be added to the [response object](#response-object) with the Error provided. If omitted then the body will be an empty string.
+
+- *headers* - An object setting any additional headers.
+
+**Returns** a [Response object](#response) for chaining.
+
+**The below example can be misleading.** You can only send once. The example below is intended to show the variations for sending.
+
+```js
+function myMiddleware(req, res, next) {
+    res.send();                 // send with data as it stands and empty body
+    res.send('OK');             // send with previously set status code and 'OK' in body
+    res.send('OK', {});         // send with 'OK' in body, plus headers
+    res.send(200, 'OK');        // send with 200 status code and 'OK' in body
+    res.send(200, 'OK', {});    // set status code and body and add headers
+}
+```
+
+### #sendStatus ( code: Number ) : Response
+
+Send a response with the specified status code and the default body message for that status code.
+
+**Parameters**
+
+- *code* - The status code to send.
+
+**Returns** a [Response object](#response) for chaining.
+
+### #status ( code: Number ) : Response
+
+Set the status code without sending the response.
+
+**Parameters**
+
+- *code* - The status code to set.
+
+**Returns** a [Response object](#response) for chaining.
+
 ### SansServer ( configuration : Object ) : SansServer
 
 Construct a SansServer instance.
@@ -88,7 +223,7 @@ Construct a SansServer instance.
 
 - *request* - An optional string or object that defines the request. If a string is provided then all default options will be assumed and the path will use the passed in string value. If an object is used then these options are available:
 
-    - *body* - Any value to pass in as the body. This does not need to be a string.
+    - *body* - A string or plain object to pass in as the body. If this is a JSON string and a header specifies `Content-Type: application/json` then the Sans-Server will automatically convert the JSON string into an object.
 
     - *headers* - An object with keys and string values that represent the request headers. Defaults to `{}`.
 
@@ -140,6 +275,39 @@ server.request(req).then(function(res) {
     console.log(res);
 });
 ```
+
+##### Response Object
+
+The response object has the follow structure:
+
+```js
+{
+    body: '',
+    cookies: {},
+    error: Error,
+    headers: {},
+    rawHeaders: '',
+    statusCode: 200
+}
+```
+
+- *body* - A string representation of the data being sent.
+
+- *cookies* - An object with cookie names as properties and a value object representing their data. Specifically the value object has these properties:
+
+    - *options* - The options set for the cookie. Including domain, expiration, etc. These options are passed to the [cookie module](https://www.npmjs.com/package/cookie).
+
+    - *serialized* - A string version of the cookie that includes the cookie value, domain, expiration, etc.
+
+    - *value* - The value of the cookie exactly as it was provided when set.
+
+- *error* - This property will only be set if an uncaught error occurred while fulfilling the request. If this property exists the status code will be overwritten to to `500` and the body will be overwritten to `Internal Server Error`.
+
+- *headers* - An object with header names as properties and a value string as its value. This object does not contain any set cookie values.
+
+- *rawHeaders* - A header string that is already curated and ready to send with an HTTP response.
+
+- *statusCode* - The HTTP status code for the request.
 
 ### #use ( middleware : Function... ) : undefined
 
@@ -228,7 +396,3 @@ module.exports = function requestCounter (req, res, next) {
     next();
 };
 ```
-
-## Response Object
-
-TODO
