@@ -100,7 +100,7 @@ function Response(request, callback) {
      * Build then send the response
      * @name Response#send
      * @param {number} [code=200]
-     * @param {*,Error} [body='']
+     * @param {string|object|Error} [body='']
      * @param {object} [headers={}]
      * @returns {Response}
      */
