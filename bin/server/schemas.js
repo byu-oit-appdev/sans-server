@@ -91,6 +91,9 @@ exports.server = schemata({
     supportedMethods: {
         help: 'This must be an array with one or more of the following values: ' + httpMethods.join(', '),
         defaultValue: httpMethods.slice(0),
+        transform: function(v) {
+            return v.map(function(i) { return i.toUpperCase(); });
+        },
         validate: function(v) {
             if (!Array.isArray(v)) return false;
             for (let i = 0; i < v.length; i++) {
