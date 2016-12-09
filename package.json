@@ -37,7 +37,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/byu-oit-appdev/sans-server.gresetit"
+    "url": "git+https://github.com/byu-oit-appdev/sans-server.git"
   },
   "bugs": {
     "url": "https://github.com/byu-oit-appdev/sans-server/issues"
