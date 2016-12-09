@@ -1,3 +1,6 @@
+[![npm module downloads](http://img.shields.io/npm/dt/sans-server.svg)](https://www.npmjs.org/package/sans-server)
+[![Build status](https://img.shields.io/travis/byu-oit-appdev/sans-server.svg?style=flat)](https://travis-ci.org/byu-oit-appdev/sans-server)
+
 #sans-server
 
 Write code for a server, without the server.
