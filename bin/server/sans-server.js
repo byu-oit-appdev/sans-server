@@ -26,6 +26,7 @@ const schemas               = require('./schemas');
 
 const event = Log.firer('server');
 const map = new WeakMap();
+const nonBodyMethods = ['GET', 'COPY', 'HEAD', 'OPTIONS', 'PURGE'];
 
 module.exports = SansServer;
 
@@ -89,9 +90,13 @@ SansServer.prototype.request = function(request, callback) {
         const config = map.get(this).config;
         const chain = config.middleware.concat();
         chain.unshift(function(req, res, next) {
-            if (config.supportedMethods.indexOf(req.method) !== -1) return next();
-            res.sendStatus(405);
+            if (config.supportedMethods.indexOf(req.method) === -1) return res.sendStatus(405);
+            if (req.body && nonBodyMethods.indexOf(req.method) !== -1) {
+                event(req, 'client-error', req.method + ' cannot send body', { body: req.body });
+            }
+            next();
         });
+        chain.unshift(jsonBody);
         chain.push(unhandled);
 
         // initialize variables
@@ -251,6 +256,27 @@ function eventMessage(config, data) {
         (config.duration ? '@' + prettyPrint.seconds(data.duration) + '  ' : '') +
         data.message +
         (config.verbose ? '\n\t' + JSON.stringify(data.event, null, '  ').replace(/^/gm, '\t') : '');
+}
+
+/**
+ * Middleware function that will attempt to parse the request body as JSON if the content type is set to application/json
+ * @param req
+ * @param res
+ * @param next
+ */
+function jsonBody(req, res, next) {
+    if (req.headers['Content-Type'] === 'application/json' && typeof req.body === 'string' && req.body) {
+        try {
+            req.body = JSON.parse(req.body);
+        } catch (err) {
+            event(req, 'client-error', 'Body provided invalid JSON', {
+                body: req.body,
+                error: err.stack
+            });
+            return res.sendStatus(400);
+        }
+    }
+    next();
 }
 
 /**
