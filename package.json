@@ -14,7 +14,12 @@
     "coverage": "nyc mocha test/**/*.js"
   },
   "keywords": [
-    "server"
+    "server",
+    "serverless",
+    "connect",
+    "request",
+    "response",
+    "middleware"
   ],
   "author": "James Speirs <james.speirs@gmail.com>",
   "license": "Apache-2.0",
