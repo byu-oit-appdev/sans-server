@@ -181,7 +181,7 @@ SansServer.prototype.request = function(request, callback) {
         }, 1000 * config.timeout);
 
         // run the middleware
-        run(chain, req, res);
+        run(this, chain, req, res);
 
         // return the result
         return paradigm(deferred.promise, callback);
@@ -299,21 +299,22 @@ function paradigm(promise, callback) {
 }
 
 /**
- *
+ * Run middleware chain.
+ * @param {SansServer} context
  * @param {function[]} chain
  * @param {Request} req
  * @param {Response} res
  */
-function run(chain, req, res) {
+function run(context, chain, req, res) {
     if (chain.length > 0 && !res.sent) {
         const callback = chain.shift();
         event(req, 'run-middleware', callback.name, {
             name: callback.name
         });
         try {
-            callback(req, res, function (err) {
+            callback.call(context, req, res, function (err) {
                 if (err && !res.sent) res.send(err);
-                run(chain, req, res);
+                run(context, chain, req, res);
             });
         } catch (e) {
             res.send(e);
