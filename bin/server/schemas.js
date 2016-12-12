@@ -56,7 +56,7 @@ exports.request = schemata({
     }
 });
 
-const httpMethods = ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'CONNECT', 'OPTIONS', 'TRACE', 'PATCH'];
+const httpMethods = ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'];
 exports.server = schemata({
     logs: {
         help: 'Expected a non-null object.',
