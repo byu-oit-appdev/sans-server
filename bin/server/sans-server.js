@@ -313,7 +313,7 @@ function run(context, chain, req, res) {
         });
         try {
             callback.call(context, req, res, function (err) {
-                if (err && !res.sent) res.send(err);
+                if (err && !res.sent) return res.send(err);
                 run(context, chain, req, res);
             });
         } catch (e) {
