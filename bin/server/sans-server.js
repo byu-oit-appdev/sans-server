@@ -192,6 +192,22 @@ SansServer.prototype.request = function(request, callback) {
 };
 
 /**
+ * Get an array of methods supported by the server.
+ * @returns {string[]}
+ */
+SansServer.prototype.supportedMethods = function() {
+    // validate context
+    if (!map.has(this)) {
+        const err = Error('Invalid execution context. Must be an instance of SansServer. Currently: ' + this);
+        err.code = 'ESSCTX';
+        err.context = this;
+        throw err;
+    }
+
+    return map.get(this).config.supportedMethods.slice(0);
+};
+
+/**
  * Specify a middleware to use.
  * @param {function} middleware...
  */
