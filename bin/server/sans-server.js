@@ -56,6 +56,17 @@ function SansServer(configuration) {
         middleware: []
     });
 
+    // use built-in pre-processing middleware
+    server.use(function methodChecks(req, res, next) {
+        if (config.supportedMethods.indexOf(req.method) === -1) return res.sendStatus(405);
+        if (req.body && nonBodyMethods.indexOf(req.method) !== -1) {
+            this.log('client-error', req.method + ' cannot send body', { body: req.body });
+            return res.sendStatus(400);
+        }
+        next();
+    });
+    server.use(jsonBodyParser);
+
     // use each middleware in configuration
     server.use.apply(server, config.middleware);
 
@@ -109,16 +120,11 @@ SansServer.prototype.request = function(request, callback) {
 
     try {
         // get middleware chain
-        const config = map.get(this).config;
-        const chain = config.middleware.concat();
-        chain.unshift(function(req, res, next) {
-            if (config.supportedMethods.indexOf(req.method) === -1) return res.sendStatus(405);
-            if (req.body && nonBodyMethods.indexOf(req.method) !== -1) {
-                event(req, 'client-error', req.method + ' cannot send body', { body: req.body });
-            }
-            next();
-        });
-        chain.unshift(jsonBody);
+        const server = map.get(this);
+        const config = server.config;
+        const chain = server.middleware.concat();
+
+        // use built-in post-processing middleware
         chain.push(unhandled);
 
         // initialize variables
@@ -243,8 +249,8 @@ SansServer.prototype.use = function(middleware) {
         throw err;
     }
 
-    const server = map.get(this);
-    const middlewares = server.middleware;
+    const server = this;
+    const middlewares = map.get(this).middleware;
 
     for (let i = 0; i < arguments.length; i++) {
         const mw = arguments[i];
@@ -310,7 +316,7 @@ function eventMessage(config, data) {
  * @param res
  * @param next
  */
-function jsonBody(req, res, next) {
+function jsonBodyParser(req, res, next) {
     if (req.headers['Content-Type'] === 'application/json' && typeof req.body === 'string' && req.body) {
         try {
             req.body = JSON.parse(req.body);
@@ -354,10 +360,10 @@ function run(chain, req, res) {
     if (chain.length > 0 && !res.sent) {
         const callback = chain.shift();
         event(req, 'run-middleware', callback.middlewareName, {
-            name: callback.name
+            name: callback.middlewareName
         });
         try {
-            callback.call(req, res, function (err) {
+            callback(req, res, function (err) {
                 if (err && !res.sent) return res.send(err);
                 run(chain, req, res);
             });
@@ -375,3 +381,4 @@ function run(chain, req, res) {
 function unhandled(req, res) {
     res.sendStatus(404);
 }
+unhandled.middlewareName = 'unhandled';
