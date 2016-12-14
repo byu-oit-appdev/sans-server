@@ -3,9 +3,6 @@
   "version": "0.0.3",
   "description": "Write code for a server, without the server.",
   "main": "index.js",
-  "bin": {
-    "node-byu-api": "pretty-print.js"
-  },
   "directories": {
     "test": "test"
   },
