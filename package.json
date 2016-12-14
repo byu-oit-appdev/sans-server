@@ -1,6 +1,6 @@
 {
   "name": "sans-server",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Write code for a server, without the server.",
   "main": "index.js",
   "bin": {
@@ -10,8 +10,8 @@
     "test": "test"
   },
   "scripts": {
-    "test": "mocha test/**/*.js",
-    "coverage": "nyc mocha test/**/*.js"
+    "test": "mocha",
+    "coverage": "nyc mocha"
   },
   "keywords": [
     "server",
