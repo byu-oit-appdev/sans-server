@@ -101,15 +101,10 @@ SansServer.prototype.request = function(request, callback) {
     // if the request is a string then wrap it
     if (typeof request === 'string') request = { path: request };
 
-    // validate context
-    if (!map.has(this)) {
-        const err = Error('Invalid execution context. Must be an instance of SansServer. Currently: ' + this);
-        err.code = 'ESSCTX';
-        err.context = this;
-        return paradigm(Promise.reject(err), callback);
-    }
-
     try {
+        // validate context
+        validateContext(this);
+
         // get middleware chain
         const server = map.get(this);
         const config = server.config;
@@ -215,14 +210,7 @@ SansServer.prototype.request = function(request, callback) {
  * @returns {string[]}
  */
 SansServer.prototype.supportedMethods = function() {
-    // validate context
-    if (!map.has(this)) {
-        const err = Error('Invalid execution context. Must be an instance of SansServer. Currently: ' + this);
-        err.code = 'ESSCTX';
-        err.context = this;
-        throw err;
-    }
-
+    validateContext(this);
     return map.get(this).config.supportedMethods.slice(0);
 };
 
@@ -231,14 +219,7 @@ SansServer.prototype.supportedMethods = function() {
  * @param {function} middleware...
  */
 SansServer.prototype.use = function(middleware) {
-
-    // validate context
-    if (!map.has(this)) {
-        const err = Error('Invalid execution context. Must be an instance of SansServer. Currently: ' + this);
-        err.code = 'ESSCTX';
-        err.context = this;
-        throw err;
-    }
+    validateContext(this);
 
     const server = this;
     const middlewares = map.get(this).middleware;
@@ -373,3 +354,16 @@ function unhandled(req, res) {
     res.sendStatus(404);
 }
 unhandled.middlewareName = 'unhandled';
+
+/**
+ * Validate context or throw an error.
+ * @param {SansServer} context
+ */
+function validateContext(context) {
+    if (!map.has(context)) {
+        const err = Error('Invalid execution context. Must be an instance of SansServer. Currently: ' + this);
+        err.code = 'ESSCTX';
+        err.context = this;
+        throw err;
+    }
+}
