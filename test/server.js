@@ -147,6 +147,25 @@ describe('server', () => {
             }).to.throw(Error);
         });
 
+        it('can get supported methods', () => {
+            const server = SansServer({ supportedMethods: ['GET'] });
+            server.use(function(req, res, next) {
+                expect(this.supportedMethods()).to.deep.equal(['GET']);
+            });
+            return server.request();
+        });
+
+        it('can emit events to static emitter', done => {
+            const server = SansServer();
+            SansServer.emitter.on('foo', function() {
+                done();
+            });
+            server.use(function(req, res, next) {
+                this.emit('foo', '');
+            });
+            return server.request();
+        });
+
     });
 
     describe('requests', () => {
