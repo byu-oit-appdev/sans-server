@@ -250,13 +250,15 @@ SansServer.prototype.use = function(middleware) {
         const mw = arguments[i];
         if (typeof mw !== 'function') throw Error('Invalid middleware specified. Expected a function. Received: ' + mw);
 
-        const logger = Log.firer(mw.name || 'middleware-' + (middlewares.length + 1));
+        const name = mw.name || 'middleware-' + (middlewares.length + 1);
+        const logger = Log.firer(name);
         const wrapped = function(req, res, next) {
             server.log = function(title, message, details) {
                 logger(req, title, message, details);
             };
             mw.call(server, req, res, next);
         };
+        wrapped.middlewareName = name;
         middlewares.push(wrapped);
     }
 };
