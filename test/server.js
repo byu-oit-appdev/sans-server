@@ -24,7 +24,7 @@ describe('server', () => {
     describe('paradigms', () => {
 
         it('promise paradigm resolves', () => {
-            const server = SansServer({ logs: { silent: false }});  // non-silent for code coverage
+            const server = SansServer();  // non-silent for code coverage
             const result = server.request();
             expect(result).to.be.instanceof(Promise);
             return result;
@@ -68,8 +68,27 @@ describe('server', () => {
 
     describe('logger', () => {
 
-        it('returns function', () => {
-            expect(SansServer.logger('foo')).to.be.a('function');
+        it('exists', () => {
+            const server = SansServer();
+            server.use(function(req, res, next) {
+                expect(this.log).to.be.a('function');
+                next();
+            });
+            return server.request();
+        });
+
+        it('distinct per middleware', () => {
+            const server = SansServer();
+            let first;
+            server.use(function(req, res, next) {
+                first = this.log;
+                next();
+            });
+            server.use(function(req, res, next) {
+                expect(this.log).to.not.equal(first);
+                next();
+            });
+            return server.request();
         });
 
     });
@@ -135,7 +154,8 @@ describe('server', () => {
         it('auto parse json string', done => {
             const request = {
                 body: JSON.stringify({ foo: 'bar' }),
-                headers: { 'content-type': 'application/json' }
+                headers: { 'content-type': 'application/json' },
+                method: 'POST'
             };
 
             const mw = function (req, res, next) {
@@ -155,7 +175,8 @@ describe('server', () => {
         it('invalid json string', () => {
             const request = {
                 body: 'foo-bar',
-                headers: { 'content-type': 'application/json' }
+                headers: { 'content-type': 'application/json' },
+                method: 'POST'
             };
 
             const server = SansServer();
@@ -164,10 +185,18 @@ describe('server', () => {
             });
         });
 
+        it('body with GET method', () => {
+            const request = { body: 'hello' };
+            const server = SansServer({ logs: { silent: false }});
+            return server.request(request)
+                .then(response => expect(response.statusCode).to.equal(400));
+        });
+
         it('body is object', done => {
             const request = {
                 body: {},
-                headers: { 'content-type': 'application/json' }
+                headers: { 'content-type': 'application/json' },
+                method: 'POST'
             };
 
             const server = SansServer({ middleware: [ function(req, res, next) {
@@ -181,7 +210,7 @@ describe('server', () => {
             const request = {
                 body: 'body',
                 headers: { foo: 'bar' },
-                method: 'GET',
+                method: 'POST',
                 path: 'foo',
                 query: { q1: 'q1' }
             };
