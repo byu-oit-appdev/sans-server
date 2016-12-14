@@ -60,7 +60,7 @@ function SansServer(configuration) {
     server.use(function methodChecks(req, res, next) {
         if (config.supportedMethods.indexOf(req.method) === -1) return res.sendStatus(405);
         if (req.body && nonBodyMethods.indexOf(req.method) !== -1) {
-            this.log('client-error', req.method + ' cannot send body', { body: req.body });
+            this.log('client-error', req.method + ' cannot receive body', { body: req.body });
             return res.sendStatus(400);
         }
         next();
