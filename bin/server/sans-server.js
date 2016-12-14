@@ -353,7 +353,7 @@ function paradigm(promise, callback) {
 function run(chain, req, res) {
     if (chain.length > 0 && !res.sent) {
         const callback = chain.shift();
-        event(req, 'run-middleware', callback.name, {
+        event(req, 'run-middleware', callback.middlewareName, {
             name: callback.name
         });
         try {
