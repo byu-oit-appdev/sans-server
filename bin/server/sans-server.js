@@ -83,15 +83,6 @@ SansServer.prototype.emit = function(name, args) {
 };
 
 /**
- * Produce a logger function. A great tool for middleware to log events.
- * @param {string} name The name to produce all log events under.
- * @returns {Function}
- */
-SansServer.prototype.logger = function(name) {
-    return Log.firer(name);
-};
-
-/**
  * Have the server execute a request.
  * @name SansServer#request
  * @params {object|string} [request={}] An object that has request details or a string that is a GET endpoint.
