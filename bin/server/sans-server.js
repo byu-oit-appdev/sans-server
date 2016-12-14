@@ -79,7 +79,7 @@ function SansServer(configuration) {
  * @param {...*} args Arguments to pass with the event.
  */
 SansServer.prototype.emit = function(name, args) {
-    emitter.emit.call(this, arguments);
+    emitter.emit.apply(emitter, arguments);
 };
 
 /**
