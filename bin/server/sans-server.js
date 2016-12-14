@@ -285,10 +285,6 @@ SansServer.defaults = {
  */
 SansServer.emitter = emitter;
 
-SansServer.logger = function(name) {
-    return Log.firer(name);
-};
-
 /**
  * Produce a consistent message from event data.
  * @param {object} config SansServer logs configuration.
