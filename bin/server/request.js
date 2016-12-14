@@ -21,12 +21,13 @@ const uuid                  = require('../uuid');
 module.exports = Request;
 
 /**
- *
- * @param [configuration={}]
+ * Create a request instance.
+ * @param {Object|string} [configuration={}]
  * @returns {Request}
  * @constructor
  */
 function Request(configuration) {
+    if (typeof configuration === 'string') configuration = { path: configuration };
     const config = schemas.request.normalize(configuration || {});
     const factory = Object.create(Request.prototype);
 

@@ -98,9 +98,6 @@ SansServer.prototype.request = function(request, callback) {
         request = {};
     }
 
-    // if the request is a string then wrap it
-    if (typeof request === 'string') request = { path: request };
-
     try {
         // validate context
         validateContext(this);
