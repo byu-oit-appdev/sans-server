@@ -19,7 +19,8 @@ Write code for a server, without the server.
 
 This example will always return a 404 status in the response. Without middleware there is nothing to handle the response.
 
-[Find Middleware](https://www.npmjs.com/browse/keyword/connect)
+[Find Connect Middleware](https://www.npmjs.com/browse/keyword/connect)
+[Find Sans-Server Specific Middleware](https://www.npmjs.com/browse/keyword/sans-server-middleware)
 
 ```js
 const SansServer = require('sans-server');
