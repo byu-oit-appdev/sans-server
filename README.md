@@ -280,6 +280,53 @@ Construct a SansServer instance.
 
 **Returns** a SansServer instance.
 
+### #emit ( name : String [, ...arg : * ] ) : undefined
+
+**Parameters**
+
+- *name* - The name of the event being emitted.
+- *arg* - An argument to send with the event. Any number of arguments can be send with this function after the *name* parameter.
+
+**Returns** undefined.
+
+**Example**
+
+Emit an event through middleware.
+
+```js
+const SansServer = require('sans-server');
+const server = SansServer();
+
+server.use(function(res, res, next) {
+   this.emit('my-middleware', 'some data');
+   next();
+});
+```
+
+### #log ( title : String, message : String [, details: Object ] ) : undefined
+
+**Parameters**
+
+- *title* - The title of the logged event.
+- *message* - A brief description of the event.
+- *details* - An optional object that will only show if logging is set to verbose.
+
+**Returns** undefined.
+
+**Example**
+
+Log through middleware.
+
+```js
+const SansServer = require('sans-server');
+const server = SansServer();
+
+server.use(function(res, res, next) {
+   this.log('Something Happened', 'This is a message', { foo: 'bar' });
+   next();
+});
+```
+
 ### #request ( [ request : Object|String ] [, callback: Function ] ) : Promise < response >
 
 **Parameters**
@@ -421,41 +468,4 @@ SansServer.defaults = {
 
 ### SansServer.emitter
 
-A [NodeJS EventEmitter] instance that emits and handles events that are tied to the SansServer. See the [Double-Send Error](#double-send-error) example for one example of it's use.
-
-### SansServer.logger ( name : String ) : Function
-
-Build a logger function that can be used to add to request processing logs.
-
-**Parameters**
-
-- *name* - The name you'd like to give this logger. The name will show in the logs to distinguish the origin of the log entry.
-
-**Returns** a logger function that takes four parameters:
-
-- *request* - The current request object.
-
-- *title* - A title for the event.
-
-- *message* - The message to log.
-
-- *details* - An optional object that provides details for the log entry. The details will only appear if logging mode is set to verbose.
-
-**Example**
-
-Create a middleware function that logs the request number.
-
-```js
-const SansServer = require('SansServer');
-const log = SansServer.logger('request-counter');
-var count = 0;
-
-module.exports = function requestCounter (req, res, next) {
-    count++;
-    log(req, 'increment', 'Number or requests: ' + count, {
-        count: count,
-        time: Date.now()
-    });
-    next();
-};
-```
+A [NodeJS EventEmitter](https://nodejs.org/api/events.html) instance that emits and handles events that are tied to the SansServer. See the [Double-Send Error](#double-send-error) example for one example of it's use.
