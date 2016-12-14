@@ -48,15 +48,37 @@ function SansServer(configuration) {
         clone: true
     });
     const config = schemas.server.normalize(merged);
-    const factory = Object.create(SansServer.prototype);
+    const server = Object.create(SansServer.prototype);
 
     // store configuration for this factory
-    map.set(factory, {
-        config: config
+    map.set(server, {
+        config: config,
+        middleware: []
     });
 
-    return factory;
+    // use each middleware in configuration
+    server.use.apply(server, config.middleware);
+
+    return server;
 }
+
+/**
+ * Fire an event that is specific to this SansServer instance.
+ * @param {string} name The event name.
+ * @param {...*} args Arguments to pass with the event.
+ */
+SansServer.prototype.emit = function(name, args) {
+    emitter.emit.call(this, arguments);
+};
+
+/**
+ * Produce a logger function. A great tool for middleware to log events.
+ * @param {string} name The name to produce all log events under.
+ * @returns {Function}
+ */
+SansServer.prototype.logger = function(name) {
+    return Log.firer(name);
+};
 
 /**
  * Have the server execute a request.
@@ -221,11 +243,17 @@ SansServer.prototype.use = function(middleware) {
         throw err;
     }
 
-    const config = map.get(this).config;
+    const server = map.get(this);
+    const middlewares = server.middleware;
+
     for (let i = 0; i < arguments.length; i++) {
         const mw = arguments[i];
         if (typeof mw !== 'function') throw Error('Invalid middleware specified. Expected a function. Received: ' + mw);
-        config.middleware.push(mw);
+
+        const wrapped = function(req, res, next) {
+            mw.call(server, req, res, next);
+        };
+        middlewares.push(wrapped);
     }
 };
 
