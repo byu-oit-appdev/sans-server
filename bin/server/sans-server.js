@@ -266,6 +266,18 @@ SansServer.defaults = {
 SansServer.emitter = emitter;
 
 /**
+ * Expose the request constructor. Useful for writing tests for plugins.
+ * @type {Request}
+ */
+SansServer.Request = Request;
+
+/**
+ * Expose the response constructor. Useful for writing tests for plugins.
+ * @type {Response}
+ */
+SansServer.Response = Response;
+
+/**
  * Produce a consistent message from event data.
  * @param {object} config SansServer logs configuration.
  * @param {object} data
