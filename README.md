@@ -274,7 +274,7 @@ Construct a SansServer instance.
 
     - *middleware* - An array of connect middleware functions. Defaults to `[]`.
 
-    - *supportedMethods* - An array of HTTP methods that the server will not return a 405 status code for. Defaults to `['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'CONNECT', 'OPTIONS', 'TRACE', 'PATCH']`.
+    - *supportedMethods* - An array of HTTP methods that the server will not return a 405 status code for. Defaults to `['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH']`.
 
     - *timeout* - The number of seconds before a request times out. Defaults to `30`.
 
@@ -358,7 +358,7 @@ const server = SansServer({
         verbose: false
     },
     middleware: [],
-    supportedMethods: ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'CONNECT', 'OPTIONS', 'TRACE', 'PATCH'],
+    supportedMethods: ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     timeout: 30
 });
 
@@ -461,7 +461,7 @@ SansServer.defaults = {
         verbose: false
     },
     middleware: [],
-    supportedMethods: ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'CONNECT', 'OPTIONS', 'TRACE', 'PATCH'],
+    supportedMethods: ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     timeout: 30
 };
 ```
