@@ -47,6 +47,8 @@ function SansServer(configuration) {
         },
         clone: true
     });
+    if (configuration && configuration.hasOwnProperty('supportedMethods')) merged.supportedMethods = configuration.supportedMethods;
+
     const config = schemas.server.normalize(merged);
     const server = Object.create(SansServer.prototype);
 
