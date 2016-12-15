@@ -68,13 +68,13 @@ describe('server', () => {
 
     describe('logger', () => {
 
-        it('exists', () => {
+        it('exists', done => {
             const server = SansServer();
             server.use(function(req, res, next) {
                 expect(this.log).to.be.a('function');
-                next();
+                done();
             });
-            return server.request();
+            server.request();
         });
 
         it('distinct per middleware', () => {
@@ -86,9 +86,9 @@ describe('server', () => {
             });
             server.use(function(req, res, next) {
                 expect(this.log).to.not.equal(first);
-                next();
+                done();
             });
-            return server.request();
+            server.request();
         });
 
     });
@@ -147,12 +147,13 @@ describe('server', () => {
             }).to.throw(Error);
         });
 
-        it('can get supported methods', () => {
+        it('can get supported methods', done => {
             const server = SansServer({ supportedMethods: ['GET'] });
             server.use(function(req, res, next) {
                 expect(this.supportedMethods()).to.deep.equal(['GET']);
+                done();
             });
-            return server.request();
+            server.request();
         });
 
         it('can emit events to static emitter', done => {
@@ -163,7 +164,7 @@ describe('server', () => {
             server.use(function(req, res, next) {
                 this.emit('foo', '');
             });
-            return server.request();
+            server.request();
         });
 
     });
@@ -222,7 +223,7 @@ describe('server', () => {
                 expect(req.body).to.equal(request.body);
                 done();
             }]});
-            return server.request(request);
+            server.request(request);
         });
 
         it('processes request', (done) => {
