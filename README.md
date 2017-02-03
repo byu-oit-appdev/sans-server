@@ -241,6 +241,12 @@ Send a response with the specified status code and the default body message for 
 
 **Returns** a [Response object](#response) for chaining.
 
+### #state ( ) : Object
+
+Get the current state of the response.
+
+**Returns** an object in the following format: `{ cookies: Object, headers: Object, sent: boolean, statusCode: number }`.
+
 ### #status ( code: Number ) : Response
 
 Set the status code without sending the response.

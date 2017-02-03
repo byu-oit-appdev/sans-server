@@ -225,6 +225,19 @@ function Response(request, callback) {
     };
 
     /**
+     * Get the current state information for the response.
+     * @returns {{cookies: {}, headers: {}, statusCode: number}}
+     */
+    factory.state = function() {
+        return {
+            cookies: cookies,
+            headers: _headers,
+            sent: sent,
+            statusCode: code
+        }
+    };
+
+    /**
      * Set the status code.
      * @name Response#status
      * @param {number} code
