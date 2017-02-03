@@ -234,6 +234,17 @@ describe('response', () => {
         res.send();
     });
 
+    it('can clear header', done => {
+        const res = Response(req, function(err, res) {
+            expect(res.headers).not.to.haveOwnProperty('foo');
+            done();
+        });
+
+        res.set('foo', 'bar');
+        res.clearHeader('foo');
+        res.send();
+    });
+
     it('can set status', done => {
         const res = Response(req, function(err, res) {
             try {
@@ -252,5 +263,29 @@ describe('response', () => {
         const res = Response.error();
         expect(res.body).to.equal('Internal Server Error');
         expect(res.statusCode).to.equal(500);
+    });
+
+    it('can get current state', () => {
+        const res = Response(req, () => {});
+
+        res.status(100);
+        res.set('foo', 'bar');
+        const state = res.state;
+        expect(state.statusCode).to.equal(100);
+        expect(state.headers.Foo).to.equal('bar');
+    });
+
+    it('calls send hooks prior to completion', done => {
+        let hooked = false;
+        const res = Response(req, () => {
+            expect(hooked).to.be.true;
+            done();
+        });
+        res.hook(function(state) {
+            hooked = true;
+            expect(this).to.equal(res);
+            expect(state).to.deep.equal(res.state);
+        });
+        res.send();
     });
 });

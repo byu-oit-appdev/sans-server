@@ -33,17 +33,41 @@ module.exports = Response;
  * @constructor
  */
 function Response(request, callback) {
-    const cookies = {};
     const factory = Object.create(Response.prototype);
-    const _headers = {};
-    let sent = false;
-    let statusCode = 200;
+    const hooks = {
+        send: []
+    };
+    const state = {
+        body: '',
+        cookies: {},
+        headers: {},
+        sent: false,
+        statusCode: undefined
+    };
+
+    /**
+     * Set the body content.
+     * @param {*} value
+     * @returns {Response}
+     */
+    factory.body = function(value) {
+        let str = '' + value;
+        if (str.length > 40) str = str.substr(0, 25) + '...';
+
+        state.body = value;
+        log(request, 'body-set', str, {
+            value: value
+        });
+
+        return factory;
+    };
 
     /**
      * Clear a cookie.
      * @name Response#clearCookie
      * @param {string} name
      * @param {object} [options={}]
+     * @returns {Response}
      */
     factory.clearCookie = function(name, options) {
         const opts = Object.assign({}, options || {}, {
@@ -53,26 +77,65 @@ function Response(request, callback) {
     };
 
     /**
+     * Clear a header.
+     * @name Response#clearHeader
+     * @param {string} name
+     * @returns {Response}
+     */
+    factory.clearHeader = function(name) {
+        const key = prettyPrint.headerCase(name);
+        if (state.headers.hasOwnProperty(key)) {
+            const value = state.headers[key];
+            delete state.headers[key];
+            log(request, 'clear-header', key + ': ' + value, {
+                name: key,
+                value: value
+            });
+        }
+        return factory;
+    };
+
+    /**
      * Set a cookie.
      * @name Response#cookie
      * @param {string} name
      * @param {string} value
      * @param {object} [options={}]
+     * @returns {Response}
      */
     factory.cookie = function(name, value, options) {
         if (value && typeof value === 'object') value = JSON.stringify(value);
-        cookies[name] = {
+        state.cookies[name] = {
             options: options,
             serialized: cookie.serialize(name, value, options || {}),
             value: value
         };
         
-        log(request, 'set-cookie', name + ': ' + cookies[name], {
+        log(request, 'set-cookie', name + ': ' + state.cookies[name], {
             name: name,
             options: options,
-            serialized: cookies[name],
+            serialized: state.cookies[name],
             value: value
         });
+        return factory;
+    };
+
+    /**
+     * Add a send hook.
+     * @name Response#hook
+     * @param {function} hook
+     * @returns {Response}
+     */
+    factory.hook = function(hook) {
+        if (typeof hook !== 'function') {
+            const err = Error('Send hook expected a function. Received: ' + hook);
+            err.code = 'ESHOOK';
+            throw err;
+        }
+
+        log(request, 'send-hook', 'Hook defined', { hook: hook });
+        hooks.send.push(hook);
+
         return factory;
     };
 
@@ -94,7 +157,7 @@ function Response(request, callback) {
      */
     Object.defineProperty(factory, 'sent', {
         enumerable: true,
-        get: function() { return sent; }
+        get: function() { return state.sent; }
     });
 
     /**
@@ -109,40 +172,51 @@ function Response(request, callback) {
         let err = null;
 
         // make sure that the response is only sent once
-        if (sent) {
+        if (state.sent) {
             const err = Error('Response already sent for ' + request.id);
             err.code = 'ESSENT';
             emitter.emit('error', err);
             return factory;
         }
-        sent = true;
 
         // figure out what arguments were passed in
         if (arguments.length === 0) {
-            code = statusCode;
-            body = '';
+            code = state.statusCode;
+            body = state.body;
             headers = {};
         } else if (arguments.length === 1) {
             body = arguments[0];
-            code = statusCode;
+            code = state.statusCode;
             headers = {};
         } else if (arguments.length === 2) {
             if (typeof arguments[0] !== 'number') {
                 body = arguments[0];
                 headers = arguments[1];
-                code = statusCode;
+                code = state.statusCode;
             } else {
                 headers = {};
             }
         }
 
-        // log status code event
-        if (code !== statusCode) factory.status(code);
+        // update status code
+        if (code !== state.statusCode) factory.status(code);
+        if (state.statusCode === undefined) factory.status(200);
 
         // set additional headers
         Object.keys(headers).forEach(function(key) {
             factory.set(key, headers[key]);
         });
+
+        // call the send hooks
+        hooks.send.forEach(hook => {
+            log(request, 'send-hook', 'Executing', { hook: hook });
+            try {
+                hook.call(factory, factory.state);
+            } catch (err) {
+                body = err;
+            }
+        });
+        state.sent = true;
 
         // if the body is an Error then set the status code to 500
         if (body instanceof Error) {
@@ -152,12 +226,12 @@ function Response(request, callback) {
                 stack: err.stack
             });
 
-            code = 500;
+            state.statusCode = 500;
             body = httpStatus[500];
-            removeObjectProperties(_headers);
-            removeObjectProperties(cookies);
-            log(request, 'reset-headers', 'All headers reset.', {});
+            state.cookies = {};
+            state.headers = {};
             log(request, 'reset-cookies', 'All cookies reset.', {});
+            log(request, 'reset-headers', 'All headers reset.', {});
             factory.set('Content-Type', 'text/plain');
             factory.status(500);
         }
@@ -168,29 +242,25 @@ function Response(request, callback) {
             factory.set('Content-Type', 'application/json');
         }
 
-        // make sure the body is a string
+        // update body
         if (typeof body !== 'string') body = body.toString();
-
-        // freeze the cookies and headers
-        Object.keys(cookies).forEach(function(key) { Object.freeze(cookies[key]); });
-        Object.freeze(cookies);
-        Object.freeze(_headers);
+        if (body !== state.body) factory.body(body);
 
         // call the callback and fire an event
-        const rawHeaderString = rawHeaders(_headers, cookies);
+        const rawHeaderString = rawHeaders(state.headers, state.cookies);
         const subBody = body.substr(0, 25);
         log(request, 'sent', body === subBody ? body : subBody + '...', {
             body: body,
-            cookies: cookies,
-            headers: _headers,
-            statusCode: code
+            cookies: state.cookies,
+            headers: state.headers,
+            statusCode: state.statusCode
         });
         callback(err, {
             body: body,
-            cookies: cookies,
-            headers: _headers,
+            cookies: state.cookies,
+            headers: state.headers,
             rawHeaders: rawHeaderString,
-            statusCode: code
+            statusCode: state.statusCode
         });
 
         return factory;
@@ -216,7 +286,7 @@ function Response(request, callback) {
      */
     factory.set = function(key, value) {
         key = prettyPrint.headerCase(key);
-        _headers[key] = '' + value;
+        state.headers[key] = '' + value;
         log(request, 'set-header', key + ': ' + value, {
             header: key,
             value: value
@@ -226,16 +296,20 @@ function Response(request, callback) {
 
     /**
      * Get the current state information for the response.
-     * @returns {{cookies: {}, headers: {}, statusCode: number}}
+     * @name Response#state
+     * @type {{body: *, cookies: {}, headers: {}, sent: boolean, statusCode: number}}
      */
-    factory.state = function() {
-        return {
-            cookies: cookies,
-            headers: _headers,
-            sent: sent,
-            statusCode: code
+    Object.defineProperty(factory, 'state', {
+        get: function() {
+            return {
+                body: typeof state.body === 'object' ? JSON.parse(JSON.stringify(body)) : state.body,
+                cookies: Object.assign({}, state.cookies),
+                headers: Object.assign({}, state.headers),
+                sent: state.sent,
+                statusCode: state.statusCode
+            }
         }
-    };
+    });
 
     /**
      * Set the status code.
@@ -244,7 +318,7 @@ function Response(request, callback) {
      * @returns {Response}
      */
     factory.status = function(code) {
-        statusCode = code;
+        state.statusCode = code;
         log(request, 'set-status', code, {
             statusCode: code
         });
@@ -263,13 +337,6 @@ Response.error = function() {
         statusCode: 500
     };
 };
-
-function removeObjectProperties(obj) {
-    Object.keys(obj)
-        .forEach(function(key) {
-            delete obj[key];
-        });
-}
 
 function rawHeaders(headers, cookies) {
     const results = [];

@@ -17,7 +17,7 @@ Write code for a server, without the server.
 
 ### Basic Example
 
-This example will always return a 404 status in the response. Without middleware there is nothing to handle the response.
+**IMPORTANT** This example will always return a 404 status in the response. Without middleware there is nothing to handle the response.
 
 - [Find Connect Middleware](https://www.npmjs.com/browse/keyword/connect)
 - [Find Sans-Server Specific Middleware](https://www.npmjs.com/browse/keyword/sans-server-middleware)
@@ -144,6 +144,16 @@ function echoMethodMiddleware(req, res, next) {
 
 Each middleware created receives a response object and a request object. Middleware is the only way to make the Sans-Server do what you want it to. These are the methods available on an instance of the core response object.
 
+### #body ( value : * ) : Response
+
+Set the body value.
+
+**Parameters**
+
+- *value* - The value to set the body to. This can be a string or an object.
+
+**Returns** a [Response object](#response) for chaining.
+
 ### #clearCookie ( name : String [, options : Object ] ) : Response
 
 Set a header that will tell the browser to clear the cookie specified.
@@ -162,6 +172,16 @@ function myMiddleware(req, res, next) {
     next();
 }
 ```
+
+### #clearHeader ( name : String ) : Response
+
+Remove a header value.
+
+**Parameters**
+
+- *name* - The name of the header to clear.
+
+**Returns** a [Response object](#response) for chaining.
 
 ### #cookie ( name : String, value : String [, options: Object ] ) : Response
 
@@ -183,6 +203,16 @@ function myMiddleware(req, res, next) {
     next();
 }
 ```
+
+### #hook ( hook: Function ) : Response
+
+Add a send hook to the response. When the response is sent, all send hooks will be called. Hooks can make any modifications to the response.
+
+**Parameters**
+
+- *hook* - The function to call.
+
+**Returns** a [Response object](#response) for chaining.
 
 ### #redirect ( url: String ) : Response
 
