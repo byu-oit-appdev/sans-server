@@ -82,7 +82,7 @@ function Request(configuration) {
      * @name Request#url
      * @type {string}
      */
-    factory.url =  '/' + config.path + buildQueryString(config.query);
+    factory.url =  config.path + buildQueryString(config.query);
 
     return factory;
 }

@@ -45,7 +45,7 @@ exports.request = schemata({
     path: {
         help: 'This must be a string that represents the URL path without the domain, query parameters, or hash.',
         defaultValue: '',
-        transform: function (v) { return v.replace(/^\//, '').replace(/\/$/, ''); },
+        transform: function (v) { return '/' + v.replace(/^\//, '').replace(/\/$/, ''); },
         validate: function(v) { return typeof v === 'string' && !/[?=#]/.test(v) }
     },
     query: {

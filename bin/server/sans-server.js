@@ -180,7 +180,7 @@ SansServer.prototype.request = function(request, callback) {
         });
 
         // create and emit the start event
-        event(req, 'request-start', req.method + ' /' + req.path, {
+        event(req, 'request-start', req.method + ' ' + req.path, {
             body: req.body,
             headers: req.headers,
             method: req.method,

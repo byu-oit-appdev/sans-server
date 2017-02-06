@@ -241,7 +241,7 @@ describe('server', () => {
                     expect(req.body).to.equal(request.body);
                     expect(req.headers.Foo).to.equal(request.headers.foo);
                     expect(req.method).to.equal(request.method);
-                    expect(req.path).to.equal(request.path);
+                    expect(req.path).to.equal('/' + request.path);
                     expect(req.query.q1).to.equal(request.query.q1);
                     next();
                     done();
