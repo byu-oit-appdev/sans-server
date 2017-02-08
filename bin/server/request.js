@@ -58,7 +58,10 @@ function Request(configuration) {
      * @name Request#id
      * @type {string}
      */
-    factory.id = uuid();
+    Object.defineProperty(factory, 'id', {
+        value: uuid(),
+        writable: false
+    });
 
     /**
      * @name Request#method
