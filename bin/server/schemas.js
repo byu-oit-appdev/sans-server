@@ -22,7 +22,6 @@ const rxUrl = /^https?:\/\/[\s\S]{1,}?(?::\d+)?(?:\/[\s\S]+?)?$/;
 
 exports.request = schemata({
     body: {
-        defaultValue: '',
         validate: function(v) { return typeof v === 'string' || v.constructor === Object }
     },
     headers: {
