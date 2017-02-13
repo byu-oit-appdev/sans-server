@@ -261,13 +261,15 @@ function myMiddleware(req, res, next) {
 }
 ```
 
-### #sendStatus ( code: Number ) : Response
+### #sendStatus ( code: Number [, includeMessage ] ) : Response
 
 Send a response with the specified status code and the default body message for that status code.
 
 **Parameters**
 
 - *code* - The status code to send.
+
+- *includeMessage* - Whether to set the body to the status code's associated message. If set to true the content type will also be set to plain text. Defaults to `false`.
 
 **Returns** a [Response object](#response) for chaining.
 
