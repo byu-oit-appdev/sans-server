@@ -212,6 +212,7 @@ function Response(request, callback) {
             log(request, 'send-hook', 'Executing', { hook: hook });
             try {
                 hook.call(factory, factory.state);
+                body = state.body;
             } catch (err) {
                 body = err;
             }
