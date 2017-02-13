@@ -164,7 +164,7 @@ function Response(request, callback) {
      * Build then send the response
      * @name Response#send
      * @param {number} [code=200]
-     * @param {string|object|Error} [body='']
+     * @param {string|object|Error} [body]
      * @param {object} [headers={}]
      * @returns {Response}
      */
@@ -243,7 +243,7 @@ function Response(request, callback) {
         }
 
         // update body
-        if (typeof state.body !== 'string') factory.body(body.toString());
+        if (typeof state.body !== 'string') factory.body(state.body.toString());
 
         // call the callback and fire an event
         const rawHeaderString = rawHeaders(state.headers, state.cookies);
@@ -301,7 +301,7 @@ function Response(request, callback) {
     Object.defineProperty(factory, 'state', {
         get: function() {
             return {
-                body: typeof state.body === 'object' ? JSON.parse(JSON.stringify(body)) : state.body,
+                body: typeof state.body === 'object' ? JSON.parse(JSON.stringify(state.body)) : state.body,
                 cookies: Object.assign({}, state.cookies),
                 headers: Object.assign({}, state.headers),
                 sent: state.sent,
