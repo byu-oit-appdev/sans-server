@@ -203,6 +203,9 @@ function Response(request, callback) {
         if (code !== state.statusCode) factory.status(code);
         if (state.statusCode === undefined) factory.status(200);
 
+        // update the body
+        if (body !== state.body) factory.body(body);
+
         // set additional headers
         Object.keys(headers).forEach(function(key) {
             factory.set(key, headers[key]);
@@ -213,51 +216,46 @@ function Response(request, callback) {
             log(request, 'send-hook', 'Executing', { hook: hook });
             try {
                 hook.call(factory, factory.state);
-                body = state.body;
             } catch (err) {
-                body = err;
+                factory.body(err);
             }
         });
 
         // if the body is an Error then set the status code to 500
-        if (body instanceof Error) {
-            err = body;
+        if (state.body instanceof Error) {
+            err = state.body;
             log(request, 'error', err.message, {
                 message: err.message,
                 stack: err.stack
             });
 
-            state.statusCode = 500;
-            body = httpStatus[500];
             state.cookies = {};
             state.headers = {};
             log(request, 'reset-cookies', 'All cookies reset.', {});
             log(request, 'reset-headers', 'All headers reset.', {});
-            factory.set('Content-Type', 'text/plain');
-            factory.status(500);
+            factory.status(500, true);
         }
 
         // if the body is an object then stringify
-        if (typeof body === 'object') {
-            body = JSON.stringify(body);
+        if (typeof state.body === 'object') {
             factory.set('Content-Type', 'application/json');
+            factory.body(JSON.stringify(state.body));
         }
 
         // update body
-        if (typeof body !== 'string') body = body.toString();
-        if (body !== state.body) factory.body(body);
+        if (typeof state.body !== 'string') factory.body(body.toString());
 
         // call the callback and fire an event
         const rawHeaderString = rawHeaders(state.headers, state.cookies);
-        const subBody = body.substr(0, 25);
-        log(request, 'sent', body === subBody ? body : subBody + '...', {
-            body: body,
+        const subBody = state.body.substr(0, 25);
+        log(request, 'sent', state.body === subBody ? state.body : subBody + '...', {
+            body: state.body,
             cookies: state.cookies,
             headers: state.headers,
             statusCode: state.statusCode
         });
         callback(err, {
-            body: body,
+            body: state.body,
             cookies: state.cookies,
             headers: state.headers,
             rawHeaders: rawHeaderString,
