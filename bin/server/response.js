@@ -224,7 +224,7 @@ function Response(request, callback) {
         // if the body is an Error then set the status code to 500
         if (state.body instanceof Error) {
             err = state.body;
-            log(request, 'error', err.message, {
+            log(request, 'error', err.stack, {
                 message: err.message,
                 stack: err.stack
             });
