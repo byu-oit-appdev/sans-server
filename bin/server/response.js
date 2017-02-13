@@ -178,6 +178,7 @@ function Response(request, callback) {
             emitter.emit('error', err);
             return factory;
         }
+        state.sent = true;
 
         // figure out what arguments were passed in
         if (arguments.length === 0) {
@@ -217,7 +218,6 @@ function Response(request, callback) {
                 body = err;
             }
         });
-        state.sent = true;
 
         // if the body is an Error then set the status code to 500
         if (body instanceof Error) {
@@ -274,8 +274,8 @@ function Response(request, callback) {
      * @returns {Response}
      */
     factory.sendStatus = function(code) {
-        factory.set('Content-Type', 'text/plain');
-        return factory.send(code, httpStatus[code]);
+        factory.status(code, true);
+        factory.send();
     };
 
     /**
@@ -316,13 +316,16 @@ function Response(request, callback) {
      * Set the status code.
      * @name Response#status
      * @param {number} code
+     * @param {boolean} [includeMessage=false]
      * @returns {Response}
      */
-    factory.status = function(code) {
+    factory.status = function(code, includeMessage) {
         state.statusCode = code;
-        log(request, 'set-status', code, {
-            statusCode: code
-        });
+        if (includeMessage) {
+            factory.set('Content-Type', 'text/plain');
+            state.body = httpStatus[code];
+        }
+        log(request, 'set-status', code, { statusCode: code, includeMessage: includeMessage });
         return factory;
     };
 
