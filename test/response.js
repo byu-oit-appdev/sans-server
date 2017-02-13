@@ -288,4 +288,26 @@ describe('response', () => {
         });
         res.send();
     });
+
+    it('cannot perform send during hook', done => {
+        const res = Response(req, (err, res) => {
+            expect(err.code).to.equal('ESSENT');
+            done();
+        });
+        res.hook(function(state) {
+            res.send('ok');
+        });
+        res.send();
+    });
+
+    it('can update body during hook', done => {
+        const res = Response(req, (err, res) => {
+            expect(res.body).to.equal('ok');
+            done();
+        });
+        res.hook(function(state) {
+            res.body('ok');
+        });
+        res.send('fail');
+    });
 });
