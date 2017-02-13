@@ -171,6 +171,22 @@ describe('server', () => {
 
     describe('requests', () => {
 
+        it('pulls query from path', done => {
+            const mw = function (req, res, next) {
+                try {
+                    expect(req.path).to.equal('/foo');
+                    expect(req.query.abc).to.equal('');
+                    expect(req.query.def).to.equal('bar');
+                    done();
+                } catch (e) {
+                    done(e);
+                }
+            };
+
+            const server = SansServer({ middleware: [ mw ]});
+            server.request('/foo?abc&def=bar');
+        });
+
         it('auto parse json string', done => {
             const request = {
                 body: JSON.stringify({ foo: 'bar' }),

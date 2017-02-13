@@ -378,7 +378,7 @@ server.use(function(res, res, next) {
 
     - *method* - The HTTP method to use. Defaults to `GET`.
 
-    - *path* - The URL path for your request. Do not include protocol, domain name, or query string parameters. Defaults to `''`.
+    - *path* - The URL path for your request. Do not include protocol or domain name. Query string parameters will be moved to the query object. Defaults to `''`.
 
     - *query* - An object with keys and string values that represent the query string parameters. Defaults to `{}`.
 

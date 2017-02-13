@@ -28,6 +28,20 @@ module.exports = Request;
  */
 function Request(configuration) {
     if (typeof configuration === 'string') configuration = { path: configuration };
+
+    if (/\?/.test(configuration.path)) {
+        const parts = configuration.path.split('?');
+        configuration.path = parts[0];
+
+        const query = {};
+        parts[1].split('&')
+            .forEach(pair => {
+                const kv = pair.split('=');
+                query[kv[0]] = kv[1] || '';
+            });
+        configuration.query = Object.assign(query, configuration.query || {})
+    }
+
     const config = schemas.request.normalize(configuration || {});
     const factory = Object.create(Request.prototype);
 
