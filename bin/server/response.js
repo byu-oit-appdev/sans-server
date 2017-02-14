@@ -176,7 +176,7 @@ function Response(request, callback) {
             const err = Error('Response already sent for ' + request.id);
             err.code = 'ESSENT';
             emitter.emit('error', err);
-            return factory;
+            throw err;
         }
         state.sent = true;
 
@@ -212,55 +212,50 @@ function Response(request, callback) {
         });
 
         // call the send hooks
-        hooks.send.forEach(hook => {
-            log(request, 'send-hook', 'Executing', { hook: hook });
-            try {
-                hook.call(factory, factory.state);
-            } catch (err) {
-                factory.body(err);
-            }
-        });
+        executeHooks(factory, hooks.send.slice(0), log, request)
+            .then(() => {
 
-        // if the body is an Error then set the status code to 500
-        if (state.body instanceof Error) {
-            err = state.body;
-            log(request, 'error', err.stack, {
-                message: err.message,
-                stack: err.stack
+                // if the body is an Error then set the status code to 500
+                if (state.body instanceof Error) {
+                    err = state.body;
+                    log(request, 'error', err.stack, {
+                        message: err.message,
+                        stack: err.stack
+                    });
+
+                    state.cookies = {};
+                    state.headers = {};
+                    log(request, 'reset-cookies', 'All cookies reset.', {});
+                    log(request, 'reset-headers', 'All headers reset.', {});
+                    factory.status(500, true);
+                }
+
+                // if the body is an object then stringify
+                if (typeof state.body === 'object') {
+                    factory.set('Content-Type', 'application/json');
+                    factory.body(JSON.stringify(state.body));
+                }
+
+                // update body
+                if (typeof state.body !== 'string') factory.body(state.body.toString());
+
+                // call the callback and fire an event
+                const rawHeaderString = rawHeaders(state.headers, state.cookies);
+                const subBody = state.body.substr(0, 25);
+                log(request, 'sent', state.body === subBody ? state.body : subBody + '...', {
+                    body: state.body,
+                    cookies: state.cookies,
+                    headers: state.headers,
+                    statusCode: state.statusCode
+                });
+                callback(err, {
+                    body: state.body,
+                    cookies: state.cookies,
+                    headers: state.headers,
+                    rawHeaders: rawHeaderString,
+                    statusCode: state.statusCode
+                });
             });
-
-            state.cookies = {};
-            state.headers = {};
-            log(request, 'reset-cookies', 'All cookies reset.', {});
-            log(request, 'reset-headers', 'All headers reset.', {});
-            factory.status(500, true);
-        }
-
-        // if the body is an object then stringify
-        if (typeof state.body === 'object') {
-            factory.set('Content-Type', 'application/json');
-            factory.body(JSON.stringify(state.body));
-        }
-
-        // update body
-        if (typeof state.body !== 'string') factory.body(state.body.toString());
-
-        // call the callback and fire an event
-        const rawHeaderString = rawHeaders(state.headers, state.cookies);
-        const subBody = state.body.substr(0, 25);
-        log(request, 'sent', state.body === subBody ? state.body : subBody + '...', {
-            body: state.body,
-            cookies: state.cookies,
-            headers: state.headers,
-            statusCode: state.statusCode
-        });
-        callback(err, {
-            body: state.body,
-            cookies: state.cookies,
-            headers: state.headers,
-            rawHeaders: rawHeaderString,
-            statusCode: state.statusCode
-        });
 
         return factory;
     };
@@ -339,6 +334,48 @@ Response.error = function() {
         statusCode: 500
     };
 };
+
+function executeHooks(server, hooks, log, request) {
+    if (hooks.length === 0) return Promise.resolve();
+
+    // get the hook to process
+    const hook = hooks.shift();
+
+    // create a deferred promise
+    const deferred = {};
+    deferred.promise = new Promise(function(resolve, reject) {
+        deferred.resolve = resolve;
+        deferred.reject = reject;
+    });
+
+    // safely execute the hook
+    log(request, 'send-hook', 'Executing' + (hook.name ? ' ' + hook.name : ''), { hook: hook });
+    if (hook.length > 1) {
+        try {
+            const callback = function (err) {
+                if (err) return deferred.reject(err);
+                deferred.resolve();
+            };
+            hook.call(server, server.state, callback);
+        } catch (err) {
+            deferred.reject(err);
+        }
+    } else {
+        try {
+            Promise.resolve(hook.call(server, server.state))
+                .then(deferred.resolve, deferred.reject);
+        } catch (err) {
+            deferred.reject(err);
+        }
+    }
+
+    // process the result of the hook
+    return deferred.promise
+        .then(() => executeHooks(server, hooks, log, request))
+        .catch(function(err) {
+            server.body(err);
+        });
+}
 
 function rawHeaders(headers, cookies) {
     const results = [];

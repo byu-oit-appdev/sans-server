@@ -285,7 +285,7 @@ describe('server', () => {
             });
 
             server.request().then(res => {
-                expect(res.statusCode).to.equal(200);
+                expect(res.statusCode).to.equal(500);
                 expect(hadError).to.equal(true);
                 done();
             });

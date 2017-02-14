@@ -310,4 +310,32 @@ describe('response', () => {
         });
         res.send('fail');
     });
+
+    it('hook can return promise', done => {
+        const res = Response(req, (err, res) => {
+            expect(res.body).to.equal('ok');
+            done();
+        });
+        res.hook(function(state) {
+            return Promise.resolve()
+                .then(function() {
+                    res.body('ok');
+                });
+        });
+        res.send('fail');
+    });
+
+    it('hook can use callback', done => {
+        const res = Response(req, (err, res) => {
+            expect(res.body).to.equal('ok');
+            done();
+        });
+        res.hook(function(state, callback) {
+            setTimeout(function() {
+                res.body('ok');
+                callback();
+            }, 0);
+        });
+        res.send('fail');
+    });
 });
