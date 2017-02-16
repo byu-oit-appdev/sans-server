@@ -290,7 +290,9 @@ function eventMessage(config, data) {
         (config.timeDiff ? '+' + prettyPrint.seconds(data.diff) + '  ' : '') +
         (config.duration ? '@' + prettyPrint.seconds(data.duration) + '  ' : '') +
         data.message +
-        (config.verbose ? '\n\t' + JSON.stringify(data.event, null, '  ').replace(/^/gm, '\t') : '');
+        (config.verbose && data.event && typeof data.event === 'object'
+            ? '\n\t' + JSON.stringify(data.event, null, '  ').replace(/^/gm, '\t')
+            : '');
 }
 
 /**
