@@ -51,8 +51,14 @@ function Response(request, callback) {
      * @returns {Response}
      */
     factory.body = function(value) {
-        let str = '' + value;
-        if (str.length > 40) str = str.substr(0, 25) + '...';
+        let str;
+
+        if (value instanceof Error) {
+            str = value.stack;
+        } else {
+            str = '' + value;
+            if (str.length > 40) str = str.substr(0, 37) + '...';
+        }
 
         state.body = value;
         log(request, 'body-set', str, {
@@ -295,8 +301,17 @@ function Response(request, callback) {
      */
     Object.defineProperty(factory, 'state', {
         get: function() {
+            let body;
+            if (state.body instanceof Error) {
+                body = Error(state.body.message);
+                body.stack = state.body.stack;
+            } else if (typeof state.body === 'object') {
+                body = JSON.parse(JSON.stringify(state.body))
+            } else {
+                body = state.body;
+            }
             return {
-                body: typeof state.body === 'object' ? JSON.parse(JSON.stringify(state.body)) : state.body,
+                body: body,
                 cookies: Object.assign({}, state.cookies),
                 headers: Object.assign({}, state.headers),
                 sent: state.sent,
