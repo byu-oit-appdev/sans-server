@@ -56,8 +56,7 @@ function Response(request, callback) {
         if (value instanceof Error) {
             str = value.stack;
         } else {
-            str = '' + value;
-            if (str.length > 40) str = str.substr(0, 37) + '...';
+            str = truncateString('' + value);
         }
 
         state.body = value;
@@ -116,7 +115,7 @@ function Response(request, callback) {
             serialized: cookie.serialize(name, value, options || {}),
             value: value
         };
-        
+
         log(request, 'set-cookie', name + ': ' + state.cookies[name], {
             name: name,
             options: options,
@@ -247,7 +246,7 @@ function Response(request, callback) {
 
                 // call the callback and fire an event
                 const rawHeaderString = rawHeaders(state.headers, state.cookies);
-                const subBody = state.body.substr(0, 25);
+                const subBody = truncateString(state.body);
                 log(request, 'sent', state.body === subBody ? state.body : subBody + '...', {
                     body: state.body,
                     cookies: state.cookies,
@@ -403,4 +402,9 @@ function rawHeaders(headers, cookies) {
             results.push('Set-Cookie: ' + cookies[key].serialized);
         });
     return results.join('\n');
+}
+
+function truncateString(value) {
+    if (value.length > 40) value = value.substr(0, 37) + '...';
+    return value;
 }
