@@ -22,7 +22,8 @@ const rxUrl = /^https?:\/\/[\s\S]{1,}?(?::\d+)?(?:\/[\s\S]+?)?$/;
 
 exports.request = schemata({
     body: {
-        validate: function(v) { return typeof v === 'string' || v.constructor === Object }
+        transform: function(v) { return !v ? '' : v; },
+        validate: function(v) { return !v || typeof v === 'string' || v.constructor === Object }
     },
     headers: {
         help: 'This must be an object of key value pairs where each key and its value is a string.',
