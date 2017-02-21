@@ -18,8 +18,6 @@
 const prettyPrint           = require('../pretty-print');
 const schemata              = require('object-schemata');
 
-const rxUrl = /^https?:\/\/[\s\S]{1,}?(?::\d+)?(?:\/[\s\S]+?)?$/;
-
 exports.request = schemata({
     body: {
         transform: function(v) { return !v ? '' : v; },
