@@ -15,7 +15,6 @@
  *    limitations under the License.
  **/
 'use strict';
-const prettyPrint           = require('../pretty-print');
 const schemata              = require('object-schemata');
 
 exports.request = schemata({
@@ -26,14 +25,7 @@ exports.request = schemata({
     headers: {
         help: 'This must be an object of key value pairs where each key and its value is a string.',
         defaultValue: {},
-        transform: function(v) {
-            const copy = {};
-            Object.keys(v).forEach(function(key) {
-                const newKey = prettyPrint.headerCase(key);
-                copy[newKey] = v[key];
-            });
-            return copy;
-        },
+        transform: function(v) { return Object.assign({}, v); },
         validate: isObjectKeyValueString
     },
     method: {

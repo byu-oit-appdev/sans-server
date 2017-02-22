@@ -19,7 +19,6 @@ const cookie                = require('cookie');
 const emitter               = require('../emitter');
 const httpStatus            = require('http-status');
 const log                   = require('./log').firer('response');
-const prettyPrint           = require('../pretty-print');
 
 module.exports = Response;
 
@@ -84,11 +83,10 @@ function Response(request, callback) {
     /**
      * Clear a header.
      * @name Response#clearHeader
-     * @param {string} name
+     * @param {string} key
      * @returns {Response}
      */
-    factory.clearHeader = function(name) {
-        const key = prettyPrint.headerCase(name);
+    factory.clearHeader = function(key) {
         if (state.headers.hasOwnProperty(key)) {
             const value = state.headers[key];
             delete state.headers[key];
@@ -284,7 +282,6 @@ function Response(request, callback) {
      * @returns {Response}
      */
     factory.set = function(key, value) {
-        key = prettyPrint.headerCase(key);
         state.headers[key] = '' + value;
         log(request, 'set-header', key + ': ' + value, {
             header: key,
