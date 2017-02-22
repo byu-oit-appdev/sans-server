@@ -69,7 +69,7 @@ exports.server = schemata({
         transform: function(v) {
             return {
                 duration: v.hasOwnProperty('duration') ? !!v.duration : false,
-                grouped: v.hasOwnProperty('duration') ? !!v.grouped : true,
+                grouped: v.hasOwnProperty('grouped') ? !!v.grouped : true,
                 silent: v.hasOwnProperty('silent') ? !!v.silent : true,
                 timeDiff: v.hasOwnProperty('timeDiff') ? !!v.timeDiff : true,
                 timeStamp: v.hasOwnProperty('timeStamp') ? !!v.timeStamp : false,
