@@ -124,7 +124,7 @@ describe('response', () => {
             try {
                 expect(res.statusCode).to.equal(200);
                 expect(res.body).to.equal('body');
-                expect(res.rawHeaders).to.equal('Foo: bar');
+                expect(res.rawHeaders).to.equal('foo: bar');
                 done();
             } catch (e) {
                 done(e);
@@ -139,7 +139,7 @@ describe('response', () => {
             try {
                 expect(res.statusCode).to.equal(100);
                 expect(res.body).to.equal('body');
-                expect(res.rawHeaders).to.equal('Foo: bar');
+                expect(res.rawHeaders).to.equal('foo: bar');
                 done();
             } catch (e) {
                 done(e);
@@ -208,7 +208,7 @@ describe('response', () => {
     it('can set header', done => {
         const res = Response(req, function(err, res) {
             try {
-                expect(res.rawHeaders).to.equal('Foo: bar');
+                expect(res.rawHeaders).to.equal('foo: bar');
                 done();
             } catch (e) {
                 done(e);
@@ -222,7 +222,7 @@ describe('response', () => {
     it('can overwrite header', done => {
         const res = Response(req, function(err, res) {
             try {
-                expect(res.rawHeaders).to.equal('Foo: baz');
+                expect(res.rawHeaders).to.equal('foo: baz');
                 done();
             } catch (e) {
                 done(e);
@@ -272,7 +272,7 @@ describe('response', () => {
         res.set('foo', 'bar');
         const state = res.state;
         expect(state.statusCode).to.equal(100);
-        expect(state.headers.Foo).to.equal('bar');
+        expect(state.headers.foo).to.equal('bar');
     });
 
     it('calls send hooks prior to completion', done => {
