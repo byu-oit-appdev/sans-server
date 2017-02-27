@@ -25,8 +25,8 @@ exports.request = schemata({
     headers: {
         help: 'This must be an object of key value pairs where each key and its value is a string.',
         defaultValue: {},
-        transform: function(v) { return Object.assign({}, v); },
-        validate: isObjectKeyValueString
+        transform: function(v) { return v ? Object.assign({}, v) : {}; },
+        validate: isObjectKeyValueStringOrFalsy
     },
     method: {
         defaultValue: 'GET',
@@ -41,8 +41,8 @@ exports.request = schemata({
     query: {
         help: 'This must be an object of key value pairs where each key and its value is a string.',
         defaultValue: {},
-        transform: copyObject,
-        validate: isObjectKeyValueString
+        transform: function(v) { return v ? copyObject(v) : {} },
+        validate: isObjectKeyValueStringOrFalsy
     }
 });
 
@@ -109,8 +109,9 @@ function copyObject(v) {
     return Object.assign({}, v);
 }
 
-function isObjectKeyValueString(v) {
-    if (!v || typeof v !== 'object') return false;
+function isObjectKeyValueStringOrFalsy(v) {
+    if (!v) return true;
+    if (typeof v !== 'object') return false;
 
     const keys = Object.keys(v);
     for (let i = 0; i < keys.length; i++) {
