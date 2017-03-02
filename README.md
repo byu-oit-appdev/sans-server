@@ -24,11 +24,19 @@ Write code for a server, without the server.
 
 ```js
 const SansServer = require('sans-server');
+
+// create a server instance
 const server = SansServer();
-server.request(function(response) {
+
+// make a request against the server
+server.request({ path: '/' }, function(response) {
     console.log(response.statusCode); // 404
 });
 ```
+
+### Can I Get a Router?
+
+Of course you can, but to keep this library as small as possible it has been omitted by default. Try out [sans-server-router](https://www.npmjs.com/package/sans-server-router) or if you're into using Swagger try out [sans-server-swagger](https://www.npmjs.com/package/sans-server-swagger).
 
 ### Create Middleware
 
