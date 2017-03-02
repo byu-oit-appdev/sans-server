@@ -41,7 +41,7 @@ function Response(request, callback) {
         cookies: {},
         headers: {},
         sent: false,
-        statusCode: undefined
+        statusCode: 0
     };
 
     /**
@@ -204,7 +204,7 @@ function Response(request, callback) {
 
         // update status code
         if (code !== state.statusCode) factory.status(code);
-        if (state.statusCode === undefined) factory.status(200);
+        if (state.statusCode === 0) factory.status(200);
 
         // update the body
         if (body !== state.body) factory.body(body);

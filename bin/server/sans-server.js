@@ -364,7 +364,11 @@ function run(chain, req, res) {
  * @param {Response} res
  */
 function unhandled(req, res) {
-    res.sendStatus(404);
+    if (res.state.statusCode === 0) {
+        res.sendStatus(404);
+    } else {
+        res.send();
+    }
 }
 unhandled.middlewareName = 'unhandled';
 
