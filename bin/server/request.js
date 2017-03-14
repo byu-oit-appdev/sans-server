@@ -64,14 +64,7 @@ function Request(configuration) {
      */
     factory.headers = Object.keys(config.headers)
         .reduce(function(headers, key) {
-            const value = config.headers[key];
-            key = key
-                .split('-')
-                .map(function(v) {
-                    return v.substr(0, 1).toUpperCase() + v.substr(1).toLowerCase()
-                })
-                .join('-');
-            headers[key] = value;
+            headers[key.toLowerCase()] = config.headers[key];
             return headers;
         }, {});
 
