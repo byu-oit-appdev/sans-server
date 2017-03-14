@@ -52,6 +52,13 @@ function Request(configuration) {
     factory.body = config.body;
 
     /**
+     * The original unformatted headers.
+     * @name Request#_headers
+     * @type {Object<string, string>}
+     */
+    factory._headers = Object.assign({}, config.headers);
+
+    /**
      * @name Request#headers
      * @type {Object<string,string>}
      */
