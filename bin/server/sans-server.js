@@ -36,7 +36,7 @@ module.exports = SansServer;
  * @constructor
  */
 function SansServer(configuration) {
-    const config = schemas.server.normalize(configuration);
+    const config = schemas.server.normalize(configuration || {});
     const server = Object.create(SansServer.prototype);
 
     // store configuration for this factory
@@ -289,7 +289,7 @@ function eventMessage(config, data) {
  * @param next
  */
 function jsonBodyParser(req, res, next) {
-    if (req.headers['Content-Type'] === 'application/json' && typeof req.body === 'string' && req.body) {
+    if (req.headers['content-type'] === 'application/json' && typeof req.body === 'string' && req.body) {
         try {
             req.body = JSON.parse(req.body);
         } catch (err) {

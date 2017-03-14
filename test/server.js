@@ -204,7 +204,7 @@ describe('server', () => {
                 }
             };
 
-            const server = SansServer({ middleware: [ mw ]});
+            const server = SansServer({ middleware: [ mw ], logs: { silent: false }});
             server.request(request);
         });
 
@@ -255,7 +255,7 @@ describe('server', () => {
                 try {
                     expect(req).to.not.equal(request);
                     expect(req.body).to.equal(request.body);
-                    expect(req.headers.Foo).to.equal(request.headers.foo);
+                    expect(req.headers.foo).to.equal(request.headers.foo);
                     expect(req.method).to.equal(request.method);
                     expect(req.path).to.equal('/' + request.path);
                     expect(req.query.q1).to.equal(request.query.q1);
