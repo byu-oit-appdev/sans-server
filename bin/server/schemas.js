@@ -60,6 +60,7 @@ exports.server = Typed({
         logs: {
             type: Object,
             allowNull: false,
+            default: {},
             properties: {
                 duration: {
                     type: Boolean,
