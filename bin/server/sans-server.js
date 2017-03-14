@@ -15,7 +15,6 @@
  *    limitations under the License.
  **/
 'use strict';
-const deepMerge             = require('deepmerge');
 const defer                 = require('../async/defer');
 const emitter               = require('../emitter');
 const Log                   = require('./log');
@@ -37,19 +36,7 @@ module.exports = SansServer;
  * @constructor
  */
 function SansServer(configuration) {
-    const merged = deepMerge(SansServer.defaults, configuration || {}, {
-        arrayMerge: function(dest, src) {
-            const copy = dest.slice();
-            src.forEach(function(item) {
-                if (copy.indexOf(src) === -1) copy.push(item);
-            });
-            return copy;
-        },
-        clone: true
-    });
-    if (configuration && configuration.hasOwnProperty('supportedMethods')) merged.supportedMethods = configuration.supportedMethods;
-
-    const config = schemas.server.normalize(merged);
+    const config = schemas.server.normalize(configuration);
     const server = Object.create(SansServer.prototype);
 
     // store configuration for this factory

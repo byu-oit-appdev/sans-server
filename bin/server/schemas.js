@@ -15,99 +15,106 @@
  *    limitations under the License.
  **/
 'use strict';
-const schemata              = require('object-schemata');
+const Typed             = require('fully-typed');
 
-exports.request = schemata({
-    body: {
-        transform: function(v) { return !v ? '' : v; },
-        validate: function(v) { return !v || typeof v === 'string' || v.constructor === Object }
-    },
-    headers: {
-        help: 'This must be an object of key value pairs where each key and its value is a string.',
-        defaultValue: {},
-        transform: function(v) { return v ? Object.assign({}, v) : {}; },
-        validate: isObjectKeyValueStringOrFalsy
-    },
-    method: {
-        defaultValue: 'GET',
-        transform: function(v) { return v.toUpperCase(); }
-    },
-    path: {
-        help: 'This must be a string that represents the URL path without the domain, query parameters, or hash.',
-        defaultValue: '',
-        transform: function (v) { return '/' + v.replace(/^\//, '').replace(/\/$/, ''); },
-        validate: function(v) { return typeof v === 'string' && !/[?=#]/.test(v) }
-    },
-    query: {
-        help: 'This must be an object of key value pairs where each key and its value is a string.',
-        defaultValue: {},
-        transform: function(v) { return v ? copyObject(v) : {} },
-        validate: isObjectKeyValueStringOrFalsy
+const httpMethods = ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'];
+
+exports.request = Typed({
+    type: Object,
+    allowNull: false,
+    properties: {
+        body: {
+            validate: v => !v || typeof v === 'string' || v.constructor === Object
+        },
+        headers: {
+            type: Object,
+            default: {},
+            transform: v => v ? Object.assign({}, v) : {},
+            validate: isObjectKeyValueStringOrFalsy
+        },
+        method: {
+            default: 'GET',
+            transform: v => v.toUpperCase(),
+            validate: v => httpMethods.indexOf(v.toUpperCase()) !== -1
+        },
+        path: {
+            type: String,
+            default: '',
+            transform: v => '/' + v.replace(/^\//, '').replace(/\/$/, ''),
+            validate: v => !/[?=#]/.test(v)
+        },
+        query: {
+            type: Object,
+            default: {},
+            transform: v => v ? Object.assign({}, v) : {},
+            validate: isObjectKeyValueStringOrFalsy
+        }
     }
 });
 
-const httpMethods = ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'];
-exports.server = schemata({
-    logs: {
-        help: 'Expected a non-null object.',
-        defaultValue: {
-            duration: false,
-            grouped: true,
-            silent: false,
-            timeDiff: true,
-            timeStamp: false,
-            verbose: false
-        },
-        transform: function(v) {
-            return {
-                duration: v.hasOwnProperty('duration') ? !!v.duration : false,
-                grouped: v.hasOwnProperty('grouped') ? !!v.grouped : true,
-                silent: v.hasOwnProperty('silent') ? !!v.silent : true,
-                timeDiff: v.hasOwnProperty('timeDiff') ? !!v.timeDiff : true,
-                timeStamp: v.hasOwnProperty('timeStamp') ? !!v.timeStamp : false,
-                verbose: v.hasOwnProperty('verbose') ? !!v.verbose : false
+
+exports.server = Typed({
+    type: Object,
+    allowNull: false,
+    properties: {
+        logs: {
+            type: Object,
+            allowNull: false,
+            properties: {
+                duration: {
+                    type: Boolean,
+                    default: false,
+                },
+                grouped: {
+                    type: Boolean,
+                    default: true,
+                },
+                silent: {
+                    type: Boolean,
+                    default: false,
+                },
+                timeDiff: {
+                    type: Boolean,
+                    default: true,
+                },
+                timeStamp: {
+                    type: Boolean,
+                    default: false,
+                },
+                verbose: {
+                    type: Boolean,
+                    default: false,
+                },
             }
         },
-        validate: function(v) { return v && typeof v === 'object'; }
-    },
-    middleware: {
-        help: 'This must be an array of functions.',
-        defaultValue: [],
-        validate: function(v) {
-            if (!Array.isArray(v)) return false;
-            for (let i = 0; i < v.length; i++) {
-                if (typeof v[i] !== 'function') return false;
+        middleware: {
+            type: Array,
+            default: [],
+            schema: {
+                type: Function
             }
-            return true;
+        },
+        supportedMethods: {
+            type: Array,
+            default: httpMethods.slice(0),
+            schema: {
+                type: String,
+                enum: httpMethods.slice(0)
+            }
+        },
+        timeout: {
+            type: Number,
+            default: 30,
+            min: 0
+        },
+        unhandled: {
+            type: Function
         }
-    },
-    supportedMethods: {
-        help: 'This must be an array with one or more of the following values: ' + httpMethods.join(', '),
-        defaultValue: httpMethods.slice(0),
-        transform: function(v) {
-            return v.map(function(i) { return i.toUpperCase(); });
-        },
-        validate: function(v) {
-            if (!Array.isArray(v)) return false;
-            for (let i = 0; i < v.length; i++) {
-                if (httpMethods.indexOf(v[i]) === -1) return false;
-            }
-            return true;
-        }
-    },
-    timeout: {
-        help: 'This must be a non-negative number.',
-        defaultValue: 30,
-        validate: function(v) { return typeof v === 'number' && !isNaN(v) && v >= 0 }
     }
 });
 exports.server.httpMethods = httpMethods;
 
 
-
-function copyObject(v) {
-    return Object.assign({}, v);
-}
 
 function isObjectKeyValueStringOrFalsy(v) {
     if (!v) return true;
