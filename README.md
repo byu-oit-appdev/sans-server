@@ -128,9 +128,11 @@ server.request();
 
 Each middleware created receives a response object and a request object. Middleware is the only way to access the request object. The request object has the following properties:
 
+- *_headers* - The headers as received.
+
 - *body* - The body of the request. This may be a string or a plain object.
 
-- *headers* - An object with the defined headers.
+- *headers* - An object with the defined headers. The header casing is automatically converted to lowercase, for example `Content-Type` is converted to `content-type`. The headers as received can be found in the `_headers` property.
 
 - *id* - A string that uniquely identifies this request.
 
@@ -338,6 +340,7 @@ Construct a SansServer instance.
 
 **Example**
 
+Emit an event through middleware.
 Emit an event through middleware.
 
 ```js
