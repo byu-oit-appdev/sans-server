@@ -1,6 +1,6 @@
 {
   "name": "sans-server",
-  "version": "0.0.25",
+  "version": "0.0.26",
   "description": "Write code for a server, without the server.",
   "main": "index.js",
   "directories": {
