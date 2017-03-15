@@ -25,7 +25,6 @@ const schemas               = require('./schemas');
 
 const event = Log.firer('server');
 const map = new WeakMap();
-const nonBodyMethods = ['GET', 'COPY', 'HEAD', 'OPTIONS', 'PURGE'];
 
 module.exports = SansServer;
 
@@ -48,10 +47,6 @@ function SansServer(configuration) {
     // use built-in pre-processing middleware
     server.use(function methodChecks(req, res, next) {
         if (config.supportedMethods.indexOf(req.method) === -1) return res.sendStatus(405);
-        if (req.body && nonBodyMethods.indexOf(req.method) !== -1) {
-            this.log('client-error', req.method + ' cannot receive body', { body: req.body });
-            return res.sendStatus(400);
-        }
         next();
     });
     server.use(jsonBodyParser);
