@@ -223,24 +223,6 @@ SansServer.prototype.use = function(middleware) {
 };
 
 /**
- * THe server configuration defaults to use when instantiating an instance.
- * @type {{logs: {duration: boolean, grouped: boolean, silent: boolean, timeDiff: boolean, timeStamp: boolean, verbose: boolean}, middleware: Array, supportedMethods: (*), timeout: number}}
- */
-SansServer.defaults = {
-    logs: {
-        duration: false,
-        grouped: true,
-        silent: false,
-        timeDiff: true,
-        timeStamp: false,
-        verbose: false
-    },
-    middleware: [],
-    supportedMethods: schemas.server.httpMethods.slice(0),
-    timeout: 30
-};
-
-/**
  * Expose the server emitter to allow emitting of events and adding or removing event listeners.
  * @type {Emitter}
  */
