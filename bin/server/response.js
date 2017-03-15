@@ -38,7 +38,7 @@ function Response(request, callback) {
     };
     const state = {
         body: '',
-        cookies: {},
+        cookies: [],
         headers: {},
         sent: false,
         statusCode: 0
@@ -107,19 +107,18 @@ function Response(request, callback) {
      * @returns {Response}
      */
     factory.cookie = function(name, value, options) {
-        if (value && typeof value === 'object') value = JSON.stringify(value);
-        state.cookies[name] = {
+        if (!value) value = '';
+        if (typeof value === 'object') value = JSON.stringify(value);
+        if (typeof value !== 'string') value = value.toString();
+        const c = {
+            name: name,
             options: options,
             serialized: cookie.serialize(name, value, options || {}),
             value: value
         };
+        state.cookies.push(c);
 
-        log(request, 'set-cookie', name + ': ' + state.cookies[name], {
-            name: name,
-            options: options,
-            serialized: state.cookies[name],
-            value: value
-        });
+        log(request, 'set-cookie', name + ': ' + value, c);
         return factory;
     };
 
@@ -226,7 +225,7 @@ function Response(request, callback) {
                         stack: err.stack
                     });
 
-                    state.cookies = {};
+                    state.cookies = [];
                     state.headers = {};
                     log(request, 'reset-cookies', 'All cookies reset.', {});
                     log(request, 'reset-headers', 'All headers reset.', {});
@@ -293,7 +292,7 @@ function Response(request, callback) {
     /**
      * Get the current state information for the response.
      * @name Response#state
-     * @type {{body: *, cookies: {}, headers: {}, sent: boolean, statusCode: number}}
+     * @type {{body: *, cookies: [], headers: {}, sent: boolean, statusCode: number}}
      */
     Object.defineProperty(factory, 'state', {
         get: function() {
@@ -308,7 +307,7 @@ function Response(request, callback) {
             }
             return {
                 body: body,
-                cookies: Object.assign({}, state.cookies),
+                cookies: state.cookies.map(cookie => Object.assign({}, cookie)),
                 headers: Object.assign({}, state.headers),
                 sent: state.sent,
                 statusCode: state.statusCode
@@ -394,10 +393,9 @@ function rawHeaders(headers, cookies) {
         .forEach(function(key) {
             results.push(key + ': ' + headers[key]);
         });
-    Object.keys(cookies)
-        .forEach(function(key) {
-            results.push('Set-Cookie: ' + cookies[key].serialized);
-        });
+    cookies.forEach(function(cookie) {
+        results.push('Set-Cookie: ' + cookie.serialized);
+    });
     return results.join('\n');
 }
 
