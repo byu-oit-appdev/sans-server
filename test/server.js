@@ -67,13 +67,13 @@ describe('server', () => {
 
     describe('logger', () => {
 
-        it('exists', done => {
+        it('exists', () => {
             const server = SansServer();
             server.use(function(req, res, next) {
                 expect(this.log).to.be.a('function');
-                done();
+                next();
             });
-            server.request();
+            return server.request();
         });
 
         it('distinct per middleware', () => {
@@ -85,9 +85,9 @@ describe('server', () => {
             });
             server.use(function(req, res, next) {
                 expect(this.log).to.not.equal(first);
-                done();
+                next();
             });
-            server.request();
+            return server.request();
         });
 
     });
@@ -104,15 +104,15 @@ describe('server', () => {
             return server.request({ method: 'FOO'}).then(res => expect(res.statusCode).to.equal(405));
         });
 
-        it('string defaults to GET', (done) => {
+        it('string defaults to GET', () => {
             const path = '/foo/bar';
             const mw = function(req, res, next) {
                 expect(req.method).to.equal('GET');
                 expect(req.url).to.equal(path);
-                done();
+                next();
             };
             const server = SansServer({ middleware: [ mw ]});
-            server.request(path);
+            return server.request(path);
         });
 
     });
@@ -146,13 +146,13 @@ describe('server', () => {
             }).to.throw(Error);
         });
 
-        it('can get configuration', done => {
+        it('can get configuration', () => {
             const server = SansServer({ supportedMethods: ['GET'] });
             server.use(function(req, res, next) {
                 expect(this.config.supportedMethods).to.deep.equal(['GET']);
-                done();
+                next();
             });
-            server.request();
+            return server.request();
         });
 
         it('can emit events to static emitter', done => {
@@ -170,57 +170,18 @@ describe('server', () => {
 
     describe('requests', () => {
 
-        it('pulls query from path', done => {
+        it('pulls query from path', () => {
             const mw = function (req, res, next) {
-                try {
-                    expect(req.path).to.equal('/foo');
-                    expect(req.query.abc).to.equal('');
-                    expect(req.query.def).to.equal('bar');
-                    done();
-                } catch (e) {
-                    done(e);
-                }
+                expect(req.path).to.equal('/foo');
+                expect(req.query.abc).to.equal('');
+                expect(req.query.def).to.equal('bar');
+                next();
             };
-
             const server = SansServer({ middleware: [ mw ]});
-            server.request('/foo?abc&def=bar');
+            return server.request('/foo?abc&def=bar');
         });
 
-        it('auto parse json string', done => {
-            const request = {
-                body: JSON.stringify({ foo: 'bar' }),
-                headers: { 'content-type': 'application/json' },
-                method: 'POST'
-            };
-
-            const mw = function (req, res, next) {
-                try {
-                    expect(req.body).to.be.an('object');
-                    expect(req.body).to.deep.equal({foo: 'bar'});
-                    done();
-                } catch (e) {
-                    done(e);
-                }
-            };
-
-            const server = SansServer({ middleware: [ mw ], logs: { silent: false }});
-            server.request(request);
-        });
-
-        it('invalid json string', () => {
-            const request = {
-                body: 'foo-bar',
-                headers: { 'content-type': 'application/json' },
-                method: 'POST'
-            };
-
-            const server = SansServer();
-            return server.request(request).then(function(res) {
-                expect(res.statusCode).to.equal(400);
-            });
-        });
-
-        it('body is object', done => {
+        it('body is object', () => {
             const request = {
                 body: {},
                 headers: { 'content-type': 'application/json' },
@@ -229,12 +190,12 @@ describe('server', () => {
 
             const server = SansServer({ middleware: [ function(req, res, next) {
                 expect(req.body).to.equal(request.body);
-                done();
+                next();
             }]});
-            server.request(request);
+            return server.request(request);
         });
 
-        it('processes request', (done) => {
+        it('processes request', () => {
             const request = {
                 body: 'body',
                 headers: { foo: 'bar' },
@@ -244,30 +205,24 @@ describe('server', () => {
             };
 
             const mw = function (req, res, next) {
-                try {
-                    expect(req).to.not.equal(request);
-                    expect(req.body).to.equal(request.body);
-                    expect(req.headers.foo).to.equal(request.headers.foo);
-                    expect(req.method).to.equal(request.method);
-                    expect(req.path).to.equal('/' + request.path);
-                    expect(req.query.q1).to.equal(request.query.q1);
-                    next();
-                    done();
-                } catch (e) {
-                    next();
-                    done(e);
-                }
+                expect(req).to.not.equal(request);
+                expect(req.body).to.equal(request.body);
+                expect(req.headers.foo).to.equal(request.headers.foo);
+                expect(req.method).to.equal(request.method);
+                expect(req.path).to.equal('/' + request.path);
+                expect(req.query.q1).to.equal(request.query.q1);
+                next();
             };
 
             const server = SansServer({ middleware: [ mw ]});
-            server.request(request);
+            return server.request(request);
         });
 
     });
 
     describe('response', () => {
 
-        it('send twice emits error', (done) => {
+        it('send twice emits error', () => {
             const server = SansServer({ middleware: [ function (req, res, next) { res.send('ok'); res.send('fail'); } ]});
             let hadError = false;
 
@@ -276,10 +231,9 @@ describe('server', () => {
                 hadError = true;
             });
 
-            server.request().then(res => {
+            return server.request().then(res => {
                 expect(res.statusCode).to.equal(500);
                 expect(hadError).to.equal(true);
-                done();
             });
         });
 
