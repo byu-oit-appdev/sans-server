@@ -30,7 +30,7 @@ describe('response', () => {
         const res = Response(req, function(err, res) {
             try {
                 expect(res.rawHeaders).to.equal('Set-Cookie: foo=; Expires=Thu, 01 Jan 1970 00:00:00 GMT');
-                expect(res.cookies.foo.serialized).to.equal('foo=; Expires=Thu, 01 Jan 1970 00:00:00 GMT');
+                expect(res.cookies[0].serialized).to.equal('foo=; Expires=Thu, 01 Jan 1970 00:00:00 GMT');
                 done();
             } catch (e) {
                 done(e);
@@ -45,7 +45,7 @@ describe('response', () => {
         const res = Response(req, function(err, res) {
             try {
                 expect(res.rawHeaders).to.equal('Set-Cookie: foo=bar');
-                expect(res.cookies.foo.serialized).to.equal('foo=bar');
+                expect(res.cookies[0].serialized).to.equal('foo=bar');
                 done();
             } catch (e) {
                 done(e);
@@ -56,10 +56,10 @@ describe('response', () => {
         res.send();
     });
 
-    it('overwrites cookie with same name', done => {
+    it('cookie with same name creates second entry', done => {
         const res = Response(req, function(err, res) {
             try {
-                expect(res.rawHeaders).to.equal('Set-Cookie: foo=baz');
+                expect(res.rawHeaders).to.equal('Set-Cookie: foo=bar\nSet-Cookie: foo=baz');
                 done();
             } catch (e) {
                 done(e);

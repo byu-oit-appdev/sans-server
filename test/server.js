@@ -19,7 +19,6 @@ const expect            = require('chai').expect;
 const SansServer        = require('../bin/server/sans-server');
 
 describe('server', () => {
-    SansServer.defaults.logs.silent = true;
 
     describe('paradigms', () => {
 
@@ -147,10 +146,10 @@ describe('server', () => {
             }).to.throw(Error);
         });
 
-        it('can get supported methods', done => {
+        it('can get configuration', done => {
             const server = SansServer({ supportedMethods: ['GET'] });
             server.use(function(req, res, next) {
-                expect(this.supportedMethods()).to.deep.equal(['GET']);
+                expect(this.config.supportedMethods).to.deep.equal(['GET']);
                 done();
             });
             server.request();
@@ -219,13 +218,6 @@ describe('server', () => {
             return server.request(request).then(function(res) {
                 expect(res.statusCode).to.equal(400);
             });
-        });
-
-        it('body with GET method', () => {
-            const request = { body: 'hello' };
-            const server = SansServer({ logs: { silent: false }});
-            return server.request(request)
-                .then(response => expect(response.statusCode).to.equal(400));
         });
 
         it('body is object', done => {
