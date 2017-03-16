@@ -39,63 +39,6 @@ function myMiddleware(req, res, next) {
 server.use(myMiddleware);
 ```
 
-### Emit an Event
-
-***emit ( name : String [, ...arg : * ] ) : undefined***
-
-**Parameters**
-
-- *name* - The name of the event being emitted.
-
-- *arg* - An argument to send with the event. Any number of arguments can be sent with this function after the *name* parameter.
-
-**Returns** undefined.
-
-**Example**
-
-Emit an event through middleware.
-
-```js
-const SansServer = require('sans-server');
-const server = SansServer();
-
-server.use(function(res, res, next) {
-   this.emit('event-name', 'some data');
-   next();
-});
-```
-
-### Logging
-
-**log ( type: String, message: String [, details: Object ] ) : undefined**
-
-Add to the request log. Logs may be grouped by request or having varying information, depending on how the sans-server instance was [configured](#).
-
-**Parameters**
-
-- *type* - The type of event.
-
-- *message* - A brief description of the event.
-
-- *details* - An optional object that will only show if logging is set to verbose.
-
-**Returns** undefined.
-
-**Example**
-
-Log through middleware.
-
-```js
-const SansServer = require('sans-server');
-const server = SansServer();
-
-server.use(function(res, res, next) {
-   const event = { foo: 'bar' };
-   this.log('event-type', 'The event description.', event);
-   next();
-});
-```
-
 ## Middleware Router
 
 The sans-server package does not route on its own, but you can use existing routing if your interested in that very often used bit of functionality.
