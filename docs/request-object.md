@@ -1,6 +1,6 @@
 # Request Object
 
-A request object is produced whenever a request is made against the server. Every [./middleware.md](#) will receive this object as its first parameter.
+A request object is produced whenever a request is made against the server. Every [https://github.com/byu-oit-appdev/sans-server/docs//middleware.md](#) will receive this object as its first parameter.
 
 ```js
 const SansServer = require('sans-server');
@@ -33,3 +33,11 @@ When the request object is created it has the following properties:
 - *query* - An object with the defined query string parameters.
 
 - *url* - A string that shows the path plus query string parameters.
+
+Additionally the request object inherits some properties from it's prototype:
+
+- *promise* - A promise object that will be resolved or rejected once the response is ready.
+
+- *reject* - A method that can be called to reject the request without a [response object](https://github.com/byu-oit-appdev/sans-server/docs/response-object.md), bypassing the mechanisms that produce a [standard sans-server response](https://github.com/byu-oit-appdev/sans-server/docs/sans-server.md#request).
+
+- *resolve* - A method that can be called to resolve the request without a [response object](https://github.com/byu-oit-appdev/sans-server/docs/response-object.md), bypassing the mechanisms that produce a [standard sans-server response](https://github.com/byu-oit-appdev/sans-server/docs/sans-server.md#request).
