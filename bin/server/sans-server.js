@@ -30,7 +30,7 @@ module.exports = SansServer;
 
 /**
  * Create a san-server instance.
- * @param configuration
+ * @param [configuration]
  * @returns {SansServer}
  * @constructor
  */
