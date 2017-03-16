@@ -15,8 +15,11 @@
  *    limitations under the License.
  **/
 'use strict';
+const defer                 = require('../async/defer');
 const schemas               = require('./schemas');
 const uuid                  = require('../uuid');
+
+const instances = new WeakMap();
 
 module.exports = Request;
 
@@ -44,6 +47,7 @@ function Request(configuration) {
 
     const config = schemas.request.normalize(configuration || {});
     const factory = Object.create(Request.prototype);
+    instances.set(factory, defer());
 
     /**
      * @name Request#body
@@ -105,6 +109,42 @@ function Request(configuration) {
 }
 
 /**
+ * Get the promise that the request will resolve.
+ * @name Request#promise
+ * @type {Promise}
+ */
+Object.defineProperty(Request.prototype, 'promise', {
+    get: function() {
+        validateContext(this);
+        return instances.get(this).promise;
+    }
+});
+
+/**
+ * Get the promise reject method.
+ * @name Request#reject
+ * @type {Function}
+ */
+Object.defineProperty(Request.prototype, 'reject', {
+    get: function() {
+        validateContext(this);
+        return instances.get(this).reject;
+    }
+});
+
+/**
+ * Get the promise resolve method.
+ * @name Request#resolve
+ * @type {Function}
+ */
+Object.defineProperty(Request.prototype, 'resolve', {
+    get: function() {
+        validateContext(this);
+        return instances.get(this).resolve;
+    }
+});
+
+/**
  * Build a query string from a query map.
  * @param {object} query
  * @returns {string}
@@ -115,4 +155,13 @@ function buildQueryString(query) {
         return ar;
     }, []);
     return results.length > 0 ? '?' + results.join('&') : '';
+}
+
+function validateContext(context) {
+    if (!instances.has(context)) {
+        const err = Error('Invalid execution context. Must be an instance of Request. Currently: ' + this);
+        err.code = 'ESSCTX';
+        err.context = this;
+        throw err;
+    }
 }
