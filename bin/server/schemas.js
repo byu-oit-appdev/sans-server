@@ -88,6 +88,10 @@ exports.server = Typed({
                 },
             }
         },
+        methodCheck: {
+            type: Boolean,
+            default: true
+        },
         middleware: {
             type: Array,
             default: [],
@@ -107,9 +111,6 @@ exports.server = Typed({
             type: Number,
             default: 30,
             min: 0
-        },
-        unhandled: {
-            type: Function
         }
     }
 });
