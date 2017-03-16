@@ -15,7 +15,6 @@
  *    limitations under the License.
  **/
 'use strict';
-const defer                 = require('../async/defer');
 const emitter               = require('../emitter');
 const Log                   = require('./log');
 const prettyPrint           = require('../pretty-print');
@@ -45,11 +44,7 @@ function SansServer(configuration) {
     });
 
     // use built-in pre-processing middleware
-    server.use(function methodChecks(req, res, next) {
-        if (config.supportedMethods.indexOf(req.method) === -1) return res.sendStatus(405);
-        next();
-    });
-    server.use(jsonBodyParser);
+    if (config.methodCheck) server.use(methodChecks(config));
 
     // use each middleware in configuration
     server.use.apply(server, config.middleware);
@@ -120,7 +115,6 @@ SansServer.prototype.request = function(request, callback) {
         chain.push(unhandled);
 
         // initialize variables
-        const deferred = defer();
         const req = Request(request);
         const start = Date.now();
         let timeoutId;
@@ -151,40 +145,51 @@ SansServer.prototype.request = function(request, callback) {
         });
 
         // build the response handler
-        const res = Response(req, function (err, data) {
+        const res = Response(req);
 
-            // emit the end event
-            const end = Date.now();
-            const duration = end - start;
-            event(req, 'request-end', data.statusCode + ' response status', {
-                error: err,
-                response: data,
-                time: end
+        // get the promise of request resolution
+        const promise = req.promise
+            .catch(function(err) {
+                const data = Response.error();
+                data.error = err;
+                return data;
+            })
+            .then(function(data) {
+                const hasData = data && typeof data === 'object';
+                const logData = {
+                    statusCode: (hasData && data.statusCode) || 0,
+                    location: (hasData && data.headers && typeof data.headers === 'object' && data.headers.location) || ''
+                };
+
+                // emit the end event
+                const end = Date.now();
+                const duration = end - start;
+                const eventData = hasData ? Object.assign({}, data) : {};
+                eventData.time = end;
+                event(req, 'request-end', logData.statusCode + ' response status', eventData);
+
+                // turn off event handling
+                Log.off(req);
+
+                // if grouped logging then log the events to the console now
+                if (queue && !config.logs.silent) {
+                    let log = logData.statusCode + ' ' + req.method + ' ' + req.url +
+                        (logData.statusCode === 302 ? '\n  Redirect To: ' + logData.location  : '') +
+                        '\n  ID: ' + req.id +
+                        '\n  Start: ' + new Date(start).toISOString() +
+                        '\n  Duration: ' + prettyPrint.seconds(duration) +
+                        '\n  Events:\n    ' +
+                        queue.map(function (data) {
+                            return eventMessage(config.logs, data);
+                        }).join('\n    ');
+                    console.log(log);
+                }
+
+                // clear the timeout
+                if (timeoutId) clearTimeout(timeoutId);
+
+                return data;
             });
-
-            // turn off event handling
-            Log.off(req);
-
-            // if grouped logging then log the events to the console now
-            if (queue && !config.logs.silent) {
-                let log = data.statusCode + ' ' + req.method + ' ' + req.url +
-                    (data.statusCode === 302 ? '\n  Redirect To: ' + data.headers.Location : '') +
-                    '\n  ID: ' + req.id +
-                    '\n  Start: ' + new Date(start).toISOString() +
-                    '\n  Duration: ' + prettyPrint.seconds(duration) +
-                    '\n  Events:\n    ' +
-                    queue.map(function (data) {
-                        return eventMessage(config.logs, data);
-                    }).join('\n    ');
-                console.log(log);
-            }
-
-            // clear the timeout
-            if (timeoutId) clearTimeout(timeoutId);
-
-            if (err) data.error = err;
-            deferred.resolve(data);
-        });
 
         // create and emit the start event
         event(req, 'request-start', req.method + ' ' + req.path, {
@@ -204,7 +209,7 @@ SansServer.prototype.request = function(request, callback) {
         run(chain, req, res);
 
         // return the result
-        return paradigm(deferred.promise, callback);
+        return paradigm(promise, callback);
 
     } catch (err) {
         return paradigm(Promise.reject(err), callback);
@@ -276,24 +281,22 @@ function eventMessage(config, data) {
 }
 
 /**
- * Middleware function that will attempt to parse the request body as JSON if the content type is set to application/json
- * @param req
- * @param res
- * @param next
+ * Check to see if the request matches a supported method.
+ * @param {object} config
+ * @returns {Function}
  */
-function jsonBodyParser(req, res, next) {
-    if (req.headers['content-type'] === 'application/json' && typeof req.body === 'string' && req.body) {
-        try {
-            req.body = JSON.parse(req.body);
-        } catch (err) {
-            event(req, 'client-error', 'Body provided invalid JSON', {
-                body: req.body,
-                error: err.stack
-            });
-            return res.sendStatus(400);
-        }
+function methodChecks(config) {
+    // build a map of supported methods
+    const methods = config.supportedMethods.reduce(function(prev, key) {
+        prev[key] = true;
+        return prev;
+    }, {});
+
+    // return middleware
+    return function methodChecks(req, res, next) {
+        if (methods[req.method]) return next();
+        res.sendStatus(405);
     }
-    next();
 }
 
 /**
