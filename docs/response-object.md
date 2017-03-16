@@ -1,6 +1,6 @@
 # Response Object
 
-A response object is produced whenever a request is made against the server. Every [middleware](./middleware.md) will receive this object as its second parameter.
+A response object is produced whenever a request is made against the server. Every [middleware](https://github.com/byu-oit-appdev/sans-server/docs/middleware.md) will receive this object as its second parameter.
 
 ```js
 const SansServer = require('sans-server');
@@ -133,7 +133,7 @@ Send the response. A response can only be sent once.
 
 **Parameters:**
 
-- *code* - The status code to send with the response. If omitted then it will use the last [set status code](#status--code-number---response) or if no status code has been set will default to `200`.
+- *code* - The status code to send with the response. If omitted then it will use the last set status code or if no status code has been set will default to `200`.
 
 - *body* - A string, an Object, or an Error to send. If an object then a header `Content-Type: application/json` will automatically be set. If an Error then all headers and cookies will be wiped, the header `Content-Type: text/plain` will be set, the body content will be 'Internal Server Error', and the `error` property will be added to the [response object](#response-object) with the Error provided. If omitted then the body will be an empty string.
 

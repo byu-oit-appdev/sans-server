@@ -154,7 +154,7 @@ server.request({ path: '/' }, function(response) {
 
     - *query* - An object with keys and string values that represent the query string parameters. Defaults to `{}`.
 
-- *callback* - An optional function that will be called with an object that represents the [final response](#final-response-object).
+- *callback* - An optional function that will be called with an object that represents the final response.
 
 **Returns** a Promise that is never rejected. The resolved promise will resolve to an object of this format:
 

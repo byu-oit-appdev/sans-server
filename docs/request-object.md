@@ -1,6 +1,6 @@
 # Request Object
 
-A request object is produced whenever a request is made against the server. Every [https://github.com/byu-oit-appdev/sans-server/docs//middleware.md](#) will receive this object as its first parameter.
+A request object is produced whenever a request is made against the server. Every [middleware](https://github.com/byu-oit-appdev/sans-server/docs/middleware.md) will receive this object as its first parameter.
 
 ```js
 const SansServer = require('sans-server');
