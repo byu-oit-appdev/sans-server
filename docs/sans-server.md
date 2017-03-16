@@ -12,13 +12,29 @@ This page documents the sans-server instance properties and methods.
 
 ## Constructor
 
-***SansServer ( configuration : Object ) : SansServer***
+***SansServer ( [ configuration : Object ] ) : SansServer***
 
 Construct a SansServer instance.
 
+```js
+const server = SansServer({
+    logs: {
+        duration: false,
+        grouped: true,
+        silent: false,
+        timeDiff: true,
+        timeStamp: false,
+        verbose: false
+    },
+    middleware: [],
+    supportedMethods: ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    timeout: 30
+});
+```
+
 **Parameters**
 
-- *configuration* - The configuration to apply to the sans-server instance. Options:
+- *configuration* - An optional configuration to apply to the sans-server instance. Options:
 
     - *logs* - Control how request logs are processed. Options:
 
