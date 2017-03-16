@@ -16,6 +16,7 @@
  **/
 'use strict';
 const cookie                = require('cookie');
+const defer                 = require('../async/defer');
 const emitter               = require('../emitter');
 const httpStatus            = require('http-status');
 const log                   = require('./log').firer('response');
@@ -25,13 +26,10 @@ module.exports = Response;
 /**
  * @name Response
  * @param {Request} request The request associated with this response.
- * @param {function} callback A function that is called once completed. The function will receive an error
- * as its first parameter and the response object as its second parameter. The response object will be provided
- * regardless of whether an error occurred.
  * @returns {Response}
  * @constructor
  */
-function Response(request, callback) {
+function Response(request) {
     const factory = Object.create(Response.prototype);
     const hooks = {
         send: []
@@ -241,7 +239,7 @@ function Response(request, callback) {
                 // update body
                 if (typeof state.body !== 'string') factory.body(state.body.toString());
 
-                // call the callback and fire an event
+                // fire an event about the current state
                 const rawHeaderString = rawHeaders(state.headers, state.cookies);
                 const subBody = truncateString(state.body);
                 log(request, 'sent', state.body === subBody ? state.body : subBody + '...', {
@@ -250,13 +248,17 @@ function Response(request, callback) {
                     headers: state.headers,
                     statusCode: state.statusCode
                 });
-                callback(err, {
+
+                // resolve the request
+                const sendData = {
                     body: state.body,
                     cookies: state.cookies,
                     headers: state.headers,
                     rawHeaders: rawHeaderString,
                     statusCode: state.statusCode
-                });
+                };
+                if (err) sendData.error = err;
+                request.resolve(sendData);
             });
 
         return factory;
@@ -349,18 +351,14 @@ Response.error = function() {
     };
 };
 
-function executeHooks(server, hooks, log, request) {
+function executeHooks(response, hooks, log, request) {
     if (hooks.length === 0) return Promise.resolve();
 
     // get the hook to process - last is first
     const hook = hooks.pop();
 
     // create a deferred promise
-    const deferred = {};
-    deferred.promise = new Promise(function(resolve, reject) {
-        deferred.resolve = resolve;
-        deferred.reject = reject;
-    });
+    const deferred = defer();
 
     // safely execute the hook
     log(request, 'send-hook', 'Executing' + (hook.name ? ' ' + hook.name : ''), { hook: hook });
@@ -370,13 +368,13 @@ function executeHooks(server, hooks, log, request) {
                 if (err) return deferred.reject(err);
                 deferred.resolve();
             };
-            hook.call(server, server.state, callback);
+            hook.call(response, response.state, callback);
         } catch (err) {
             deferred.reject(err);
         }
     } else {
         try {
-            Promise.resolve(hook.call(server, server.state))
+            Promise.resolve(hook.call(response, response.state))
                 .then(deferred.resolve, deferred.reject);
         } catch (err) {
             deferred.reject(err);
@@ -385,9 +383,9 @@ function executeHooks(server, hooks, log, request) {
 
     // process the result of the hook
     return deferred.promise
-        .then(() => executeHooks(server, hooks, log, request))
+        .then(() => executeHooks(response, hooks, log, request))
         .catch(function(err) {
-            server.body(err);
+            response.body(err);
         });
 }
 
