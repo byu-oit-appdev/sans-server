@@ -58,6 +58,21 @@ function SansServer(configuration) {
 }
 
 /**
+ * Get a copy of the configuration used to create the server instance.
+ * @returns {object}
+ */
+Object.defineProperty(SansServer.prototype, 'config', {
+    get: function() {
+        validateContext(this);
+        const result = Object.assign({}, map.get(this).config);
+        result.logs = Object.assign({}, result.logs);
+        result.middleware = result.middleware.slice(0);
+        result.supportedMethods = result.supportedMethods.slice(0);
+        return result;
+    }
+});
+
+/**
  * Fire an event that is specific to this SansServer instance.
  * @param {string} name The event name.
  * @param {...*} args Arguments to pass with the event.
@@ -194,15 +209,6 @@ SansServer.prototype.request = function(request, callback) {
     } catch (err) {
         return paradigm(Promise.reject(err), callback);
     }
-};
-
-/**
- * Get an array of methods supported by the server.
- * @returns {string[]}
- */
-SansServer.prototype.supportedMethods = function() {
-    validateContext(this);
-    return map.get(this).config.supportedMethods.slice(0);
 };
 
 /**
