@@ -1,5 +1,15 @@
 # Sans-Server
 
+This page documents the sans-server instance properties and methods.
+
+## Page Contents
+
+- [Constructor](#constructor)
+- [config](#config)
+- [log](#log)
+- [request](#request)
+- [use](#use)
+
 ## Constructor
 
 ***SansServer ( configuration : Object ) : SansServer***
@@ -190,7 +200,3 @@ server.use(function(req, res, next) {
 - *middleware* - A connect middleware function.
 
 **Returns** undefined.
-
-### SansServer.emitter
-
-A [NodeJS EventEmitter](https://nodejs.org/api/events.html) instance that emits and handles events that are tied to the SansServer. See the [Double-Send Error](#double-send-error) example for one example of it's use.
