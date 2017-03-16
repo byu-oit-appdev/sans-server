@@ -1,6 +1,6 @@
 # Response Object
 
-A response object is produced whenever a request is made against the server. Every middleware will receive this object as its second parameter.
+A response object is produced whenever a request is made against the server. Every [middleware](./middleware.md) will receive this object as its second parameter.
 
 ```js
 const SansServer = require('sans-server');
