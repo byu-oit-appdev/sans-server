@@ -67,6 +67,16 @@ SansServer.prototype.emit = function(name, args) {
 };
 
 /**
+ * Produce a log event. This function is overwritten by middleware runner.
+ * @param {string} type
+ * @param {string} message
+ * @param {object} [details]
+ */
+SansServer.prototype.log = function(type, message, details) {
+
+};
+
+/**
  * Have the server execute a request.
  * @name SansServer#request
  * @params {object|string} [request={}] An object that has request details or a string that is a GET endpoint.
