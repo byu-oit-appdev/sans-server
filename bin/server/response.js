@@ -348,8 +348,8 @@ Response.error = function() {
 function executeHooks(server, hooks, log, request) {
     if (hooks.length === 0) return Promise.resolve();
 
-    // get the hook to process
-    const hook = hooks.shift();
+    // get the hook to process - last is first
+    const hook = hooks.pop();
 
     // create a deferred promise
     const deferred = {};
