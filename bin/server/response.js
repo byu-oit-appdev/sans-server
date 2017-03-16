@@ -307,7 +307,11 @@ function Response(request, callback) {
             }
             return {
                 body: body,
-                cookies: state.cookies.map(cookie => Object.assign({}, cookie)),
+                cookies: state.cookies.map(cookie => {
+                    const result = Object.assign({}, cookie);
+                    result.options = Object.assign({}, result.options);
+                    return result;
+                }),
                 headers: Object.assign({}, state.headers),
                 sent: state.sent,
                 statusCode: state.statusCode
