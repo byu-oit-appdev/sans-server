@@ -18,11 +18,9 @@ const promise = server.request(config)
 
 When the request object is created it has the following properties:
 
-- *_headers* - The headers as received.
+- *body* - The body of the request. This may be a string or a plain object. If an object then the `content-type` header should be used to determine if the body is form input or JSON input.
 
-- *body* - The body of the request. This may be a string or a plain object.
-
-- *headers* - An object with the defined headers. The header casing is automatically converted to lowercase, for example `Content-Type` is converted to `content-type`. The headers as received can be found in the `_headers` property.
+- *headers* - An object with the defined headers. Following the [NodeJS http convention](https://nodejs.org/api/http.html#http_message_headers), the header casing is automatically converted to lowercase. For example `Content-Type` is converted to `content-type`.
 
 - *id* - A string that uniquely identifies this request.
 
@@ -30,7 +28,7 @@ When the request object is created it has the following properties:
 
 - *path* - The path without query string.
 
-- *query* - An object with the defined query string parameters.
+- *query* - An object with the defined query string parameters. Property values can be either a string or an array of strings.
 
 - *url* - A string that shows the path plus query string parameters.
 
