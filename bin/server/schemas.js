@@ -23,31 +23,34 @@ exports.request = Typed({
     type: Object,
     allowNull: false,
     properties: {
-        body: {
-            validate: v => !v || typeof v === 'string' || v.constructor === Object
-        },
+        body: [
+            { type: String },
+            { type: Object }
+        ],
         headers: {
             type: Object,
             default: {},
-            transform: v => v ? Object.assign({}, v) : {},
-            validate: isObjectKeyValueStringOrFalsy
+            schema: { type: String },   // all property values must be strings
+            transform: v => v ? Object.assign({}, v) : {}
         },
         method: {
             default: 'GET',
-            transform: v => v.toUpperCase(),
-            validate: v => httpMethods.indexOf(v.toUpperCase()) !== -1
+            enum: httpMethods,
+            transform: v => v.toUpperCase()
         },
         path: {
             type: String,
             default: '',
-            transform: v => '/' + v.replace(/^\//, '').replace(/\/$/, ''),
-            validate: v => !/[?=#]/.test(v)
+            transform: v => '/' + v.replace(/^\//, '').replace(/\/$/, '')
         },
         query: {
             type: Object,
             default: {},
-            transform: v => v ? Object.assign({}, v) : {},
-            validate: isObjectKeyValueStringOrFalsy
+            schema: [       // property values can be strings or arrays of strings
+                { type: String },
+                { type: Array, schema: { type: String } }
+            ],
+            transform: v => v ? cloneObject(v) : {}
         }
     }
 });
@@ -116,7 +119,17 @@ exports.server = Typed({
 });
 exports.server.httpMethods = httpMethods;
 
-
+function cloneObject(obj) {
+    if (Array.isArray(obj)) {
+        return obj.map(cloneObject);
+    } else if (obj && typeof obj === 'object') {
+        const result = {};
+        Object.keys(obj).forEach(key => result[key] = cloneObject(obj[key]));
+        return result;
+    } else {
+        return obj;
+    }
+}
 
 function isObjectKeyValueStringOrFalsy(v) {
     if (!v) return true;
