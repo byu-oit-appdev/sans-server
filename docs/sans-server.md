@@ -144,7 +144,7 @@ server.request({ path: '/' }, function(response) {
 
 - *request* - An optional string or object that defines the request. If a string is provided then that string will be interpreted as the path and all other properties will use defaults. If an object is used then these options are available:
 
-    - *body* - A string or plain object to pass in as the body. If this is a JSON string and a header specifies `Content-Type: application/json` then the Sans-Server will automatically convert the JSON string into an object. Defaults to `undefined`.
+    - *body* - A string or plain object to pass in as the body. If the [body is an object](#request-body) then it may represent form input or JSON input. Defaults to `undefined`.
 
     - *headers* - An object with keys and string values that represent the request headers. Defaults to `{}`.
 
@@ -152,7 +152,7 @@ server.request({ path: '/' }, function(response) {
 
     - *path* - The URL path for your request. Do not include protocol or domain name. Query string parameters will be moved to the query object. Defaults to `''`.
 
-    - *query* - An object with keys and string values that represent the query string parameters. Defaults to `{}`.
+    - *query* - An object with keys and string values (or an array of string values) that represent the query string parameters. Defaults to `{}`.
 
 - *callback* - An optional function that will be called with an object that represents the final response.
 
@@ -190,6 +190,52 @@ server.request({ path: '/' }, function(response) {
 - *statusCode* - The numeric status code of the response.
 
 **Note:** It is possible that the promise does not resolve to this format if the request was resolved or rejected by anything other than the [response object](https://github.com/byu-oit-appdev/sans-server/docs/response-object.md).
+
+### Request Body
+
+The request body can be either a string or an object.
+
+If the body is an object then it can be used to represent one of several content types: `application/json`, `application/x-www-form-urlencoded`, or `multipart/form-data`.
+
+The type that the object represents is determined by the `Content-Type` header. If the body is an object and the Content-Type header is not either `application/x-www-form-urlencoded` or `multipart/form-data` then the assumption is that it is a of type `application/json`.
+
+**application/x-www-form-urlencoded** body data should be formatted in the following format:
+
+```js
+{
+    fieldName1: "field value",
+    fieldName2: ["multi", "select", "input"]
+}
+```
+
+**multipart/form-data** body data should be formatted like this:
+
+```js
+{
+    fieldName1: {
+        headers: {},
+        content: "field value"
+    },
+    fieldName2: [
+        {
+            headers: {},
+            content: "multi"
+        },
+        {
+            headers: {},
+            content: "select"
+        },
+        {
+            headers: {},
+            content: "input"
+        }
+    ],
+    fileFieldName: {
+        headers: {},
+        content: "base64 encoded value"
+    }
+}
+```
 
 ## use
 
