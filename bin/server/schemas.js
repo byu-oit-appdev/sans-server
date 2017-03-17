@@ -34,8 +34,8 @@ exports.request = Typed({
             transform: v => v ? Object.assign({}, v) : {}
         },
         method: {
+            type: String,
             default: 'GET',
-            enum: httpMethods,
             transform: v => v.toUpperCase()
         },
         path: {
