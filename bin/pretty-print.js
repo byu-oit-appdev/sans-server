@@ -43,7 +43,7 @@ exports.addCharacters = function (value, ch, after, length) {
  * @returns {string}
  */
 exports.fixedLength = function(str, length) {
-    str += '                                                                                        ';
+    str = exports.addCharacters(str, ' ', true, length);
     if (str.length > length) str = str.substr(0, length);
     return str;
 };
@@ -64,5 +64,5 @@ exports.seconds = function (milliseconds) {
     const thousandths = Math.round((seconds - numeral) * Math.pow(10, decimalLen));
     const decimal = exports.addCharacters(thousandths.toString(), '0', numeral > 0, decimalLen);
 
-    return numeral + (decimal.length > 0 ? '.' : ' ') + decimal;
+    return numeral + '.' + decimal;
 };
