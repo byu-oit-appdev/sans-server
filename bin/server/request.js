@@ -30,6 +30,7 @@ module.exports = Request;
  * @constructor
  */
 function Request(configuration) {
+    if (!configuration) configuration = {};
     if (typeof configuration === 'string') configuration = { path: configuration };
 
     if (/\?/.test(configuration.path)) {
@@ -45,7 +46,7 @@ function Request(configuration) {
         configuration.query = Object.assign(query, configuration.query || {})
     }
 
-    const config = schemas.request.normalize(configuration || {});
+    const config = schemas.request.normalize(configuration);
     const factory = Object.create(Request.prototype);
     instances.set(factory, defer());
 
@@ -108,7 +109,6 @@ function Request(configuration) {
  */
 Object.defineProperty(Request.prototype, 'promise', {
     get: function() {
-        validateContext(this);
         return instances.get(this).promise;
     }
 });
@@ -120,7 +120,6 @@ Object.defineProperty(Request.prototype, 'promise', {
  */
 Object.defineProperty(Request.prototype, 'reject', {
     get: function() {
-        validateContext(this);
         return instances.get(this).reject;
     }
 });
@@ -132,7 +131,6 @@ Object.defineProperty(Request.prototype, 'reject', {
  */
 Object.defineProperty(Request.prototype, 'resolve', {
     get: function() {
-        validateContext(this);
         return instances.get(this).resolve;
     }
 });
@@ -148,13 +146,4 @@ function buildQueryString(query) {
         return ar;
     }, []);
     return results.length > 0 ? '?' + results.join('&') : '';
-}
-
-function validateContext(context) {
-    if (!instances.has(context)) {
-        const err = Error('Invalid execution context. Must be an instance of Request. Currently: ' + this);
-        err.code = 'ESSCTX';
-        err.context = this;
-        throw err;
-    }
 }
