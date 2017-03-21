@@ -17,6 +17,7 @@
 'use strict';
 const expect        = require('chai').expect;
 const schema        = require('../bin/server/schemas').request;
+const request       = require('../bin/server/request');
 
 describe('request', () => {
 
@@ -26,7 +27,7 @@ describe('request', () => {
             expect(() => schema.validate(null)).to.throw(Error);
         });
 
-        it('cannot be undefined', () => {
+        it('can be undefined', () => {
             expect(() => schema.validate()).to.throw(Error);
         });
 
@@ -82,6 +83,20 @@ describe('request', () => {
 
         });
 
+        describe('path', () => {
+
+            it('adds start slash', () => {
+                const o = schema.normalize({ path: 'abc' });
+                expect(o.path).to.equal('/abc');
+            });
+
+            it('removes trailing slash', () => {
+                const o = schema.normalize({ path: '/abc/' });
+                expect(o.path).to.equal('/abc');
+            });
+
+        });
+
         describe('query', () => {
 
             it('can be null', () => {
@@ -100,6 +115,54 @@ describe('request', () => {
                 expect(() => schema.validate({ query: { foo: ['bar', 'baz'] } })).not.to.throw(Error);
             });
 
+        });
+
+    });
+
+    describe('request instance', () => {
+
+        it('can accept undefined', () => {
+            expect(() => request()).not.to.throw(Error);
+        });
+
+        it('can provide path via string', () => {
+            const req = request('/foo/bar');
+            expect(req.path).to.equal('/foo/bar');
+        });
+
+        it('can pass query via path', () => {
+            const req = request({ path: '/abc?foo=bar&baz=123' });
+            expect(req.path).to.equal('/abc');
+            expect(Object.keys(req.query)).to.deep.equal(['foo', 'baz']);
+            expect(req.query.foo).to.equal('bar');
+            expect(req.query.baz).to.equal('123');
+        });
+
+        it('lowercases headers', () => {
+            const req = request({ headers: { Foo: 'bar' }});
+            expect(req.headers).to.have.ownProperty('foo');
+            expect(Object.keys(req.headers).length).to.equal(1);
+            expect(req.headers.foo).to.equal('bar');
+        });
+
+        it('can resolve', () => {
+            const req = request();
+            const o = {};
+            req.resolve(o);
+            return req.promise.then(v => {
+                expect(v).to.equal(o);
+            });
+        });
+
+        it('can reject', () => {
+            const req = request();
+            const o = {};
+            req.reject(o);
+            return req.promise
+                .then(
+                    v => { throw Error('Wrong error'); },
+                    e => { expect(e).to.equal(o); }
+                );
         });
 
     });
