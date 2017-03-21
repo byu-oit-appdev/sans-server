@@ -49,20 +49,6 @@ exports.fixedLength = function(str, length) {
 };
 
 /**
- * Get header case equivalent of string.
- * @param {string} str
- * @returns {string}
- */
-exports.headerCase = function(str) {
-    return str
-        .split('-')
-        .map(function(v) {
-            return v.substr(0, 1).toUpperCase() + v.substr(1).toLowerCase()
-        })
-        .join('-');
-};
-
-/**
  * Get formatted time in seconds.
  * @param {number} milliseconds
  * @returns {string}
