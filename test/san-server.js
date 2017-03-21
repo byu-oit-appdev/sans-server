@@ -18,7 +18,7 @@
 const expect            = require('chai').expect;
 const SansServer        = require('../bin/server/sans-server');
 
-describe('server', () => {
+describe('san-server', () => {
 
     describe('paradigms', () => {
 
