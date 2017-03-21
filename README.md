@@ -54,14 +54,14 @@ server.request({ path: '/' })
 
 ## Routing
 
-Routing is not built into sans-server so you'll want to use some [routing middleware](https://github.com/byu-oit-appdev/sans-server/docs/middleware.md#middleware-router).
+Routing is not built into sans-server so you'll want to use some [routing middleware](https://github.com/byu-oit-appdev/sans-server/tree/master/docs/middleware.md#middleware-router).
 
 ## Documentation
 
-- [Sans-Server Instance](https://github.com/byu-oit-appdev/sans-server/docs/sans-server.md) - An instance can be generated with a configuration. Once an instance exists it's easy to specify middleware and to make requests.
+- [Sans-Server Instance](https://github.com/byu-oit-appdev/sans-server/tree/master/docs/sans-server.md) - An instance can be generated with a configuration. Once an instance exists it's easy to specify middleware and to make requests.
 
-- [Middleware](https://github.com/byu-oit-appdev/sans-server/docs/middleware.md) - The server does almost nothing as is. You need middleware to add functionality.
+- [Middleware](https://github.com/byu-oit-appdev/sans-server/tree/master/docs/middleware.md) - The server does almost nothing as is. You need middleware to add functionality.
 
-- [Request Object](https://github.com/byu-oit-appdev/sans-server/docs/request-object.md) - This object is passed into every middleware function and has information about the request made.
+- [Request Object](https://github.com/byu-oit-appdev/sans-server/tree/master/docs/request-object.md) - This object is passed into every middleware function and has information about the request made.
 
-- [Response Object](https://github.com/byu-oit-appdev/sans-server/docs/response-object.md) - This object is passed into every middleware function and is used to produce the response.
+- [Response Object](https://github.com/byu-oit-appdev/sans-server/tree/master/docs/response-object.md) - This object is passed into every middleware function and is used to produce the response.

@@ -1,6 +1,6 @@
 # Response Object
 
-A response object is produced whenever a request is made against the server. Every [middleware](https://github.com/byu-oit-appdev/sans-server/docs/middleware.md) will receive this object as its second parameter.
+A response object is produced whenever a request is made against the server. Every [middleware](https://github.com/byu-oit-appdev/sans-server/tree/master/docs/middleware.md) will receive this object as its second parameter.
 
 ```js
 const SansServer = require('sans-server');
