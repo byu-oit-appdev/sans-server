@@ -106,8 +106,9 @@ function Response(request) {
      */
     factory.cookie = function(name, value, options) {
         if (!value) value = '';
-        if (typeof value === 'object') value = JSON.stringify(value);
-        if (typeof value !== 'string') value = value.toString();
+        if (typeof value !== 'object') value = value.toString();
+        if (typeof name !== 'string') throw Error('Cookie name must be a non-empty string. Received: ' + name);
+        if (typeof value !== 'string') throw Error('Cookie value must be a string. Received: ' + value);
         const c = {
             name: name,
             options: options,
