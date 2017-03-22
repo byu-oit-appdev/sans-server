@@ -50,7 +50,7 @@ exports.request = Typed({
                 { type: String },
                 { type: Array, schema: { type: String } }
             ],
-            transform: v => v ? cloneObject(v) : {}
+            transform: cloneObject
         }
     }
 });
@@ -129,17 +129,4 @@ function cloneObject(obj) {
     } else {
         return obj;
     }
-}
-
-function isObjectKeyValueStringOrFalsy(v) {
-    if (!v) return true;
-    if (typeof v !== 'object') return false;
-
-    const keys = Object.keys(v);
-    for (let i = 0; i < keys.length; i++) {
-        let key = keys[i];
-        if (typeof key !== 'string' || typeof v[key] !== 'string') return false;
-    }
-
-    return true;
 }
