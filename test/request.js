@@ -112,7 +112,7 @@ describe('request', () => {
             });
 
             it('can be object with array of string', () => {
-                expect(() => schema.validate({ query: { foo: ['bar', 'baz'] } })).not.to.throw(Error);
+                expect(() => schema.normalize({ query: { foo: ['bar', 'baz'] } })).not.to.throw(Error);
             });
 
         });
