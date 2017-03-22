@@ -186,7 +186,7 @@ SansServer.prototype.request = function(request, callback) {
                 }
 
                 // clear the timeout
-                if (timeoutId) clearTimeout(timeoutId);
+                clearTimeout(timeoutId);
 
                 return data;
             });
