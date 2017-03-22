@@ -197,25 +197,20 @@ The request body can be either a string or an object.
 
 If the body is an object then it can be used to represent one of several content types: `application/json`, `application/x-www-form-urlencoded`, or `multipart/form-data`.
 
-The type that the object represents is determined by the `Content-Type` header. If the body is an object and the Content-Type header is not either `application/x-www-form-urlencoded` or `multipart/form-data` then the assumption is that it is a of type `application/json`.
+The type that the object represents is determined by the `Content-Type` header. If the body is an object and the Content-Type header is either `application/x-www-form-urlencoded` or `multipart/form-data` then the object should be in form body format.
 
-**application/x-www-form-urlencoded** body data should be formatted in the following format:
+#### Form Body Format
 
-```js
-{
-    fieldName1: "field value",
-    fieldName2: ["multi", "select", "input"]
-}
-```
-
-**multipart/form-data** body data should be formatted like this:
+Form body format is used when the body represents a submitted form, whether via `application/x-www-form-urlencoded` or `multipart/form-data`. Below is an example of the structure followed by an explanation.
 
 ```js
 {
-    fieldName1: {
-        headers: {},
-        content: "field value"
-    },
+    fieldName1: [
+        {
+            headers: {},
+            content: "field value"
+        }
+    ],
     fieldName2: [
         {
             headers: {},
@@ -230,12 +225,37 @@ The type that the object represents is determined by the `Content-Type` header. 
             content: "input"
         }
     ],
-    fileFieldName: {
-        headers: {},
-        content: "base64 encoded value"
-    }
+    fileFieldName: [
+        {
+            headers: {},
+            content: "base64 encoded value"
+        }
+    ]
 }
 ```
+
+If you have a form like this that is submitted with `fname=Bob` ...
+
+```html
+<form>
+    First Name: <input name="fname" type="text">
+</form>
+```
+
+... then the body provided with the sans-server request should be formatted like this:
+
+```js
+{
+    fname: [
+        {
+            headers: {},
+            content: 'Bob'
+        }
+    ]
+}
+```
+
+Optionally the `headers` property can be omitted, but the `content` property is always required and must be a string.
 
 ## use
 
