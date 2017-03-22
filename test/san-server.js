@@ -90,6 +90,21 @@ describe('san-server', () => {
             return server.request();
         });
 
+        it('can silence logging without error', () => {
+            const server = SansServer({ logs: { silent: true }});
+            let first;
+            server.use(function(req, res, next) {
+                this.log('foo');
+                next();
+            });
+            return server.request();
+        });
+
+        it('can call noop log function', () => {
+            const server = SansServer();
+            expect(() => server.log('')).not.to.throw(Error);
+        });
+
     });
 
     describe('methods', () => {
@@ -115,9 +130,21 @@ describe('san-server', () => {
             return server.request(path);
         });
 
+        it('can skip method checks', () => {
+            const server = SansServer({ methodCheck: false});
+            return server.request({ method: 'FOO'}).then(res => {
+                expect(res.statusCode).to.equal(404)
+            });
+        });
+
     });
 
     describe('middleware', () => {
+
+        it('must be a function', () => {
+            const server = SansServer();
+            expect(() => server.use('abc')).to.throw(Error);
+        });
 
         it('can throw error', () => {
             const server = SansServer({ middleware: [ function fail(req, res, next) { throw Error('Fail'); } ]});
@@ -164,6 +191,23 @@ describe('san-server', () => {
                 this.emit('foo', '');
             });
             server.request();
+        });
+
+        it('will not run next middleware after send', () => {
+            const server = SansServer({ supportedMethods: ['GET'] });
+            let ranNext = false;
+            server.use(function(req, res, next) {
+                res.send('ok');
+                next();
+            });
+            server.use(function(req, res, next) {
+                ranNext = true;
+                next();
+            });
+            return server.request()
+                .then(res => {
+                    expect(ranNext).to.be.false;
+                });
         });
 
     });
@@ -218,6 +262,35 @@ describe('san-server', () => {
             return server.request(request);
         });
 
+        it('can resolve with no data', () => {
+            const request = { path: 'foo' };
+
+            const mw = function (req, res, next) {
+                req.resolve()
+            };
+
+            const server = SansServer({ middleware: [ mw ]});
+            return server.request(request)
+                .then(res => {
+                    expect(res).to.be.undefined;
+                });
+        });
+
+        it('can reject with error', () => {
+            const request = { path: 'foo' };
+            const e = Error('Err');
+
+            const mw = function (req, res, next) {
+                req.reject(e)
+            };
+
+            const server = SansServer({ middleware: [ mw ]});
+            return server.request(request)
+                .then(res => {
+                    expect(res.error.message).to.equal('Err');
+                });
+        });
+
     });
 
     describe('response', () => {
@@ -237,13 +310,44 @@ describe('san-server', () => {
             });
         });
 
+        it('can redirect', () => {
+            const server = SansServer();
+            server.use((req, res, next) => {
+                res.redirect('/foo');
+            });
+
+            return server.request().then(res => {
+                expect(res.statusCode).to.equal(302);
+            });
+        });
+
+        it('can send unsent', () => {
+            const server = SansServer();
+            server.use((req, res, next) => {
+                res.status(200);
+                next();
+            });
+            return server.request().then(res => {
+                expect(res.statusCode).to.equal(200);
+            });
+        });
+
     });
 
     describe('timeout', () => {
 
         it('can timeout', () => {
-            const server = SansServer({ middleware: [ function timeout(req, res, next) { } ], timeout: .5 });
-            return server.request().then(res => expect(res.statusCode).to.equal(408));
+            const server = SansServer({
+                logs: {
+                    duration: true,
+                    timeDiff: false,
+                    timeStamp: true,
+                    verbose: true
+                },
+                middleware: [ function timeout(req, res, next) { } ],
+                timeout: .1
+            });
+            return server.request().then(res => expect(res.statusCode).to.equal(504));
         });
 
     });
