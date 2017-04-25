@@ -18,7 +18,7 @@ const promise = server.request(config)
 
 When the request object is created it has the following properties:
 
-- *body* - The body of the request. This may be a string or a plain object. If an object then the `content-type` header should be used to determine if the body is form input or JSON input.
+- *body* - The body of the request. This may be a string or a plain object. If an object then the `content-type` header should be used to determine if the body is [form input](./sans-server.md#form-body-format) or JSON input.
 
 - *headers* - An object with the defined headers. Following the [NodeJS http convention](https://nodejs.org/api/http.html#http_message_headers), the header casing is automatically converted to lowercase. For example `Content-Type` is converted to `content-type`.
 
