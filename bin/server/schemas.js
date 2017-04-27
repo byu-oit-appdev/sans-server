@@ -23,10 +23,17 @@ exports.request = Typed({
     type: Object,
     allowNull: false,
     properties: {
-        body: [
-            { type: String },
-            { type: Object }
-        ],
+        body: {
+            validator: function(value) {
+                switch (typeof value) {
+                    case 'object':
+                    case 'string':
+                    case 'undefined':
+                        return true;
+                }
+                return 'Expected a string, an object, or undefined';
+            }
+        },
         headers: {
             type: Object,
             default: {},
