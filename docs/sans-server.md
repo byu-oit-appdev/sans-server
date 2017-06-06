@@ -189,7 +189,7 @@ server.request({ path: '/' }, function(response) {
 
 - *statusCode* - The numeric status code of the response.
 
-**Note:** It is possible that the promise does not resolve to this format if the request was resolved or rejected by anything other than the [response object](https://github.com/byu-oit-appdev/sans-server/tree/master/docs/response-object.md).
+**Note:** It is possible that the promise does not resolve to this format if the request was resolved or rejected by anything other than the [response object](https://github.com/byu-oit/sans-server/tree/master/docs/response-object.md).
 
 ### Request Body
 

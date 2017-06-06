@@ -35,10 +35,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/byu-oit-appdev/sans-server.git"
+    "url": "git+https://github.com/byu-oit/sans-server.git"
   },
   "bugs": {
-    "url": "https://github.com/byu-oit-appdev/sans-server/issues"
+    "url": "https://github.com/byu-oit/sans-server/issues"
   },
-  "homepage": "https://github.com/byu-oit-appdev/sans-server#readme"
+  "homepage": "https://github.com/byu-oit/sans-server#readme"
 }

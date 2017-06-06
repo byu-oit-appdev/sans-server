@@ -16,9 +16,9 @@ Any middleware you specify will be executed between steps 2 and 3 above.
 
 - Middleware functions are called in the order they are defined.
 
-- Each middleware receives a [request object](https://github.com/byu-oit-appdev/sans-server/tree/master/docs/request-object.md), a [response-object](https://github.com/byu-oit-appdev/sans-server/tree/master/docs/response-object.md), and a next function as its parameters.
+- Each middleware receives a [request object](https://github.com/byu-oit/sans-server/tree/master/docs/request-object.md), a [response-object](https://github.com/byu-oit/sans-server/tree/master/docs/response-object.md), and a next function as its parameters.
 
-- Middleware can add, remove, or overwrite properties on the [request object](https://github.com/byu-oit-appdev/sans-server/tree/master/docs/request-object.md) and the [response-object](https://github.com/byu-oit-appdev/sans-server/tree/master/docs/response-object.md).
+- Middleware can add, remove, or overwrite properties on the [request object](https://github.com/byu-oit/sans-server/tree/master/docs/request-object.md) and the [response-object](https://github.com/byu-oit/sans-server/tree/master/docs/response-object.md).
 
 - Middleware can respond to requests.
 
@@ -94,7 +94,7 @@ If a request is made and a response is sent after having already been sent then:
 
 2. The second response will generate an error log message.
 
-3. The second response will fire an event that can be detected using the [SansServer Emitter](https://github.com/byu-oit-appdev/sans-server/tree/master/docs/sans-server-statics.md#emitter).
+3. The second response will fire an event that can be detected using the [SansServer Emitter](https://github.com/byu-oit/sans-server/tree/master/docs/sans-server-statics.md#emitter).
 
 ```js
 const SansServer = require('sans-server');
