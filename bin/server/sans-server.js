@@ -119,6 +119,17 @@ SansServer.prototype.request = function(request, callback) {
         const start = Date.now();
         let timeoutId;
 
+        // add a logger to the request object
+        const reqEvent = Log.firer('REQUEST');
+        req.log = function(title, message, details) {
+            if (arguments.length === 1 || (arguments.length === 2 && typeof arguments[1] === 'object')) {
+                title = 'log';
+                message = arguments[0];
+                details = arguments[1];
+            }
+            reqEvent(req, title, message, details);
+        };
+
         // listen for events related the the processing of the request
         const queue = config.logs.grouped ? [] : null;
         let prev = start;

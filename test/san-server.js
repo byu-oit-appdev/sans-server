@@ -352,4 +352,23 @@ describe('san-server', () => {
 
     });
 
+    it.only('req.log', () => {
+        const server = SansServer({
+            logs: {
+                duration: true,
+                timeDiff: false,
+                timeStamp: true
+            },
+            middleware: [ function timeout(req, res, next) {
+                req.log('One');
+                req.log('Two', 'Second');
+                req.log('Three', { details: true });
+                req.log('Four', 'Forth', { details: true });
+                res.send('OK');
+            }],
+            timeout: .1
+        });
+        return server.request().then(res => null);
+    });
+
 });
