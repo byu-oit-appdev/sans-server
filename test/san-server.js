@@ -352,7 +352,7 @@ describe('san-server', () => {
 
     });
 
-    it.only('req.log', () => {
+    it('req.log', () => {
         const server = SansServer({
             logs: {
                 duration: true,
