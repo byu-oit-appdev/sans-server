@@ -352,6 +352,8 @@ Response.error = function() {
     };
 };
 
+Response.status = httpStatus;
+
 function executeHooks(response, hooks, log, request) {
     if (hooks.length === 0) return Promise.resolve();
 
