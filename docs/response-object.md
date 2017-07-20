@@ -232,3 +232,38 @@ Set the status code without sending the response.
 - *includeMessage* - Whether to set the body to the status code's associated message. If set to true the content type will also be set to plain text. Defaults to `false`.
 
 **Returns** the [response object](#response-object) for method chaining.
+
+# Statics
+
+The Response constructor has some static properties. This constructor is accessible through a static property on the server.
+
+```js
+const Server = require('sans-server');
+const Response = Server.Response;
+```
+
+## error
+
+***Server.Response.error () : Object***
+
+Get an object that represents an Error response object.
+ 
+**Parameters:** none
+
+**Returns** this object:
+
+```js
+{
+    body: 'Internal Server Error',
+    cookies: [],
+    headers: { 'Content-Type': 'text/plain' },
+    rawHeaders: 'Content-Type: text/plain',
+    statusCode: 500
+}
+```
+
+## status
+
+***Server.Response.status***
+
+An object map of status codes to status messages.
