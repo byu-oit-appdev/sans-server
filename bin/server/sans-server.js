@@ -110,6 +110,7 @@ SansServer.prototype.request = function(request, callback) {
         const server = map.get(this);
         const config = server.config;
         const chain = server.middleware.concat();
+        const hooks = config.hooks.concat();
 
         // use built-in post-processing middleware
         chain.push(unhandled);
@@ -157,6 +158,21 @@ SansServer.prototype.request = function(request, callback) {
 
         // build the response handler
         const res = Response(req);
+
+        // add a logger to the response object
+        const resEvent = Log.firer('RESPONSE');
+        req.log = function(title, message, details) {
+            if (arguments.length === 1 || (arguments.length === 2 && typeof arguments[1] === 'object')) {
+                title = 'log';
+                message = arguments[0];
+                details = arguments[1];
+            }
+            resEvent(req, title, message, details);
+        };
+
+        // add hooks to the response object
+        let hook;
+        while (hook = hooks.pop()) res.hook(hook);
 
         // get the promise of request resolution
         const promise = req.promise
@@ -251,6 +267,19 @@ SansServer.prototype.use = function(middleware) {
         };
         wrapped.middlewareName = name;
         middlewares.push(wrapped);
+    }
+};
+
+SansServer.prototype.hook = function(hook) {
+    validateContext(this);
+
+    const length = arguments.length;
+    const hooks = map.get(this).hooks;
+
+    for (let i = 0; i < length; i++) {
+        const hook = arguments[i];
+        if (typeof hook !== 'function') throw Error('Invalid hook specified. Expected a function. Received: ' + hook);
+        hooks.push(hook);
     }
 };
 
