@@ -334,6 +334,41 @@ describe('san-server', () => {
 
     });
 
+    describe('hooks', () => {
+
+        it('persistent hook', () => {
+            let hooked = 0;
+            const hook = function(state) { hooked++; };
+            const server = SansServer({ hooks: [hook] });
+            return server.request()
+                .then(res => {
+                    expect(hooked).to.equal(1);
+                    return server.request();
+                })
+                .then(res => {
+                    expect(hooked).to.equal(2);
+                });
+        });
+
+        it('hook via method', () => {
+            let hooked = 0;
+            const hook = function(state) { hooked++; };
+            const server = SansServer();
+            server.hook(hook);
+            return server.request()
+                .then(res => {
+                    expect(hooked).to.equal(1);
+                });
+        });
+
+        it('invalid hook', () => {
+            const hook = null;
+            const server = SansServer();
+            expect(() => server.hook(hook)).to.throw(Error);
+        })
+
+    });
+
     describe('timeout', () => {
 
         it('can timeout', () => {
