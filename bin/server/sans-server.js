@@ -120,17 +120,6 @@ SansServer.prototype.request = function(request, callback) {
         const start = Date.now();
         let timeoutId;
 
-        // add a logger to the request object
-        const reqEvent = Log.firer('REQUEST');
-        req.log = function(title, message, details) {
-            if (arguments.length === 1 || (arguments.length === 2 && typeof arguments[1] === 'object')) {
-                title = 'log';
-                message = arguments[0];
-                details = arguments[1];
-            }
-            reqEvent(req, title, message, details);
-        };
-
         // listen for events related the the processing of the request
         const queue = config.logs.grouped ? [] : null;
         let prev = start;
@@ -158,17 +147,6 @@ SansServer.prototype.request = function(request, callback) {
 
         // build the response handler
         const res = Response(req);
-
-        // add a logger to the response object
-        const resEvent = Log.firer('RESPONSE');
-        req.log = function(title, message, details) {
-            if (arguments.length === 1 || (arguments.length === 2 && typeof arguments[1] === 'object')) {
-                title = 'log';
-                message = arguments[0];
-                details = arguments[1];
-            }
-            resEvent(req, title, message, details);
-        };
 
         // add hooks to the response object
         let hook;
@@ -274,7 +252,7 @@ SansServer.prototype.hook = function(hook) {
     validateContext(this);
 
     const length = arguments.length;
-    const hooks = map.get(this).hooks;
+    const hooks = map.get(this).config.hooks;
 
     for (let i = 0; i < length; i++) {
         const hook = arguments[i];
