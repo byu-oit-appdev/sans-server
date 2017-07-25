@@ -21,6 +21,8 @@ const emitter               = require('../emitter');
 const httpStatus            = require('http-status');
 const log                   = require('./log').firer('response');
 
+const map = new WeakMap();
+
 module.exports = Response;
 
 /**
@@ -32,7 +34,7 @@ module.exports = Response;
 function Response(request) {
     const factory = Object.create(Response.prototype);
     const hooks = {
-        send: []
+        send: [hookString, hookObject, hookError]
     };
     const state = {
         body: '',
@@ -41,6 +43,9 @@ function Response(request) {
         sent: false,
         statusCode: 0
     };
+    map.set(factory, {
+        error: null
+    });
 
     /**
      * Set the body content.
@@ -51,15 +56,13 @@ function Response(request) {
         let str;
 
         if (value instanceof Error) {
-            str = value.stack;
+            str = value.stack.replace(/\n/g, '\n  ');
         } else {
             str = truncateString('' + value);
         }
 
         state.body = value;
-        log(request, 'body-set', str, {
-            value: value
-        });
+        factory.log('body-set', str, { value: value });
 
         return factory;
     };
@@ -88,7 +91,7 @@ function Response(request) {
         if (state.headers.hasOwnProperty(key)) {
             const value = state.headers[key];
             delete state.headers[key];
-            log(request, 'clear-header', key + ': ' + value, {
+            factory.log('clear-header', key + ': ' + value, {
                 name: key,
                 value: value
             });
@@ -117,7 +120,7 @@ function Response(request) {
         };
         state.cookies.push(c);
 
-        log(request, 'set-cookie', name + ': ' + value, c);
+        factory.log('set-cookie', name + ': ' + value, c);
         return factory;
     };
 
@@ -134,10 +137,20 @@ function Response(request) {
             throw err;
         }
 
-        log(request, 'send-hook', 'Hook defined', { hook: hook });
+        factory.log('send-hook', 'Hook defined', { hook: hook });
         hooks.send.push(hook);
 
         return factory;
+    };
+
+    /**
+     * Produce a response log.
+     * @param title
+     * @param description
+     * @param details
+     */
+    factory.log = function(title, description, details) {
+        log(request, title, description, details);
     };
 
     /**
@@ -150,6 +163,17 @@ function Response(request) {
         return factory.send(302, '', {
             'Location': url
         });
+    };
+
+    /**
+     * Reset to the response to it's initial state. This does not reset the sent status.
+     */
+    factory.reset = function() {
+        state.body = '';
+        state.cookies = [];
+        state.headers = {};
+        state.statusCode = 0;
+        factory.log('reset', 'Response data reset.', {});
     };
 
     /**
@@ -170,7 +194,6 @@ function Response(request) {
      * @returns {Response}
      */
     factory.send = function(code, body, headers) {
-        let err = null;
 
         // make sure that the response is only sent once
         if (state.sent) {
@@ -213,37 +236,14 @@ function Response(request) {
         });
 
         // call the send hooks
-        executeHooks(factory, hooks.send.slice(0), log, request)
+        executeHooks(factory, hooks.send.slice(0), request)
             .then(() => {
-
-                // if the body is an Error then set the status code to 500
-                if (state.body instanceof Error) {
-                    err = state.body;
-                    log(request, 'error', err.message, {
-                        message: err.message,
-                        stack: err.stack
-                    });
-
-                    state.cookies = [];
-                    state.headers = {};
-                    log(request, 'reset-cookies', 'All cookies reset.', {});
-                    log(request, 'reset-headers', 'All headers reset.', {});
-                    factory.status(500, true);
-                }
-
-                // if the body is an object then stringify
-                if (typeof state.body === 'object') {
-                    factory.set('Content-Type', 'application/json');
-                    factory.body(JSON.stringify(state.body));
-                }
-
-                // update body
-                if (typeof state.body !== 'string') factory.body(state.body.toString());
+                const store = map.get(this);
 
                 // fire an event about the current state
                 const rawHeaderString = rawHeaders(state.headers, state.cookies);
                 const subBody = truncateString(state.body);
-                log(request, 'sent', state.body === subBody ? state.body : subBody + '...', {
+                factory.log('sent', state.body === subBody ? state.body : subBody + '...', {
                     body: state.body,
                     cookies: state.cookies,
                     headers: state.headers,
@@ -258,7 +258,7 @@ function Response(request) {
                     rawHeaders: rawHeaderString,
                     statusCode: state.statusCode
                 };
-                if (err) sendData.error = err;
+                if (store.error) sendData.error = store.error;
                 request.resolve(sendData);
             });
 
@@ -285,7 +285,7 @@ function Response(request) {
      */
     factory.set = function(key, value) {
         state.headers[key] = '' + value;
-        log(request, 'set-header', key + ': ' + value, {
+        factory.log('set-header', key + ': ' + value, {
             header: key,
             value: value
         });
@@ -303,6 +303,7 @@ function Response(request) {
             if (state.body instanceof Error) {
                 body = Error(state.body.message);
                 body.stack = state.body.stack;
+                Object.keys(state.body).forEach(key => body[key] = state.body[key]);
             } else if (typeof state.body === 'object') {
                 body = JSON.parse(JSON.stringify(state.body))
             } else {
@@ -335,7 +336,7 @@ function Response(request) {
             factory.set('Content-Type', 'text/plain');
             state.body = httpStatus[code];
         }
-        log(request, 'set-status', code, { statusCode: code, includeMessage: includeMessage });
+        factory.log('set-status', code, { statusCode: code, includeMessage: includeMessage });
         return factory;
     };
 
@@ -354,7 +355,8 @@ Response.error = function() {
 
 Response.status = httpStatus;
 
-function executeHooks(response, hooks, log, request) {
+
+function executeHooks(response, hooks, request) {
     if (hooks.length === 0) return Promise.resolve();
 
     // get the hook to process - last is first
@@ -364,7 +366,7 @@ function executeHooks(response, hooks, log, request) {
     const deferred = defer();
 
     // safely execute the hook
-    log(request, 'send-hook', 'Executing' + (hook.name ? ' ' + hook.name : ''), { hook: hook });
+    response.log('send-hook', 'Executing' + (hook.name ? ' ' + hook.name : ''), { hook: hook });
     if (hook.length > 1) {
         try {
             const callback = function (err) {
@@ -386,10 +388,40 @@ function executeHooks(response, hooks, log, request) {
 
     // process the result of the hook
     return deferred.promise
-        .then(() => executeHooks(response, hooks, log, request))
+        .then(() => executeHooks(response, hooks, request))
         .catch(function(err) {
             response.body(err);
+            return executeHooks(response, hooks, request);
         });
+}
+
+function hookError(state) {
+    if (state.body instanceof Error) {
+        const err = state.body;
+        this.log('error', err.message, {
+            message: err.message,
+            stack: err.stack
+        });
+
+        map.get(this).error = err;
+        this.reset();
+        this.status(500, true);
+    }
+}
+
+function hookObject(state) {
+    if (typeof state.body === 'object') {
+        this.log('stringify', 'Converting object to JSON string', state.body);
+        this.body(JSON.stringify(state.body));
+        this.set('Content-Type', 'application/json');
+    }
+}
+
+function hookString(state) {
+    if (typeof state.body !== 'string') {
+        this.log('stringify', 'Converting body to string', state.body);
+        this.body(state.body.toString());
+    }
 }
 
 function rawHeaders(headers, cookies) {
