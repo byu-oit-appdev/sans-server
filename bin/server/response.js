@@ -20,6 +20,7 @@ const defer                 = require('../async/defer');
 const emitter               = require('../emitter');
 const httpStatus            = require('http-status');
 const log                   = require('./log').firer('response');
+const util                  = require('../util');
 
 const map = new WeakMap();
 
@@ -146,12 +147,10 @@ function Response(request) {
     /**
      * Produce a response log.
      * @param title
-     * @param description
+     * @param message
      * @param details
      */
-    factory.log = function(title, description, details) {
-        log(request, title, description, details);
-    };
+    factory.log = util.reqLog(request, log);
 
     /**
      * Redirect the client to a new URL.

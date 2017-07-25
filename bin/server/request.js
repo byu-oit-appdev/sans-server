@@ -16,7 +16,9 @@
  **/
 'use strict';
 const defer                 = require('../async/defer');
+const log                   = require('./log').firer('REQUEST');
 const schemas               = require('./schemas');
+const util                  = require('../util');
 const uuid                  = require('../uuid');
 
 const instances = new WeakMap();
@@ -74,6 +76,14 @@ function Request(configuration) {
         value: uuid(),
         writable: false
     });
+
+    /**
+     * Produce a request log.
+     * @param title
+     * @param message
+     * @param details
+     */
+    factory.log = util.reqLog(factory, log);
 
     /**
      * @name Request#method
