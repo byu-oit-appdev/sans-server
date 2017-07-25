@@ -67,6 +67,13 @@ exports.server = Typed({
     type: Object,
     allowNull: false,
     properties: {
+        hooks: {
+            type: Array,
+            default: [],
+            schema: {
+                type: Function
+            }
+        },
         logs: {
             type: Object,
             allowNull: false,
