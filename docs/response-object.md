@@ -19,6 +19,7 @@ const promise = server.request({ method: 'GET', path: '/' })
 - [Clear Cookie](#clear-cookie)
 - [Clear Header](#clear-header)
 - [Set Cookie](#set-cookie)
+- [Logging](#logging)
 - [Send Hook](#send-hook)
 - [Redirect](#redirect)
 - [Get Sent Status](#get-sent-status)
@@ -87,6 +88,20 @@ Set a header that will tell the browser to store the specified cookie and value.
 - *options* - The options to apply to the cookie. For a full list of options, refer to the [cookie module](https://www.npmjs.com/package/cookie).
 
 **Returns** the [response object](#response-object) for method chaining.
+
+## Logging
+
+**log ( [type, ] message [, details ] )**
+
+**Parameters:**
+
+- *type* - An optional string that can be used to classify the log message. Defaults to `'log'`.
+
+- *message* - A string with the message to log.
+
+- *details* - An optional object that has details about the log event. This will only be visible if logging is set to verbose.
+
+**Returns** undefined
 
 ## Send Hook
 

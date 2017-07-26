@@ -6,6 +6,7 @@ This page documents the sans-server instance properties and methods.
 
 - [Constructor](#constructor)
 - [config](#config)
+- [hook](#hook)
 - [log](#log)
 - [request](#request)
 - [use](#use)
@@ -69,6 +70,36 @@ Get the configuration that was specified to initialize the sans-server instance,
 ***emit ( name : String [, ...arg : * ] ) : undefined***
 
 Emit an event for this sans-server instance.
+
+**Parameters**
+
+- *name* - The name of the event being emitted.
+
+- *arg* - An argument to send with the event. Any number of arguments can be sent with this function after the *name* parameter.
+
+**Returns** undefined.
+
+**Example**
+
+Emit an event through middleware.
+
+```js
+const SansServer = require('sans-server');
+const server = SansServer();
+
+server.use(function(res, res, next) {
+   this.emit('event-name', 'some data');
+   next();
+});
+```
+
+## hook
+
+***hook ( fn : Function ) : undefined***
+
+Define a hook function that will be called when the response is sent. Capable of modifying the final response. The hooks are called in the reverse order from which they are defined. The first hook defined gets the last say.
+
+Each hook function is called in the context of the response object (`this === res`) and receives one parameter, the current state object. Modifying the state object directly does nothing. You must instead use the response methods to make any changes to the response. DO NOT CALL `this.send` (a.k.a. `res.send`) at this point because it will cause a double send error.
 
 **Parameters**
 
