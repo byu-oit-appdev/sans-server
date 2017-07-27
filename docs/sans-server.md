@@ -97,7 +97,7 @@ server.use(function(res, res, next) {
 
 ***hook ( fn : Function ) : undefined***
 
-Define a hook function that will be called when the response is sent. Capable of modifying the final response. The hooks are called in the reverse order from which they are defined. The first hook defined gets the last say.
+Define a persistent hook function that will be called when a response is sent. Capable of modifying the final response. The hooks are called in the reverse order from which they are defined. The first hook defined gets the last say.
 
 Each hook function is called in the context of the response object (`this === res`) and receives one parameter, the current state object. Modifying the state object directly does nothing. You must instead use the response methods to make any changes to the response. DO NOT CALL `this.send` (a.k.a. `res.send`) at this point because it will cause a double send error.
 
