@@ -34,7 +34,10 @@ module.exports = SansServer;
  * @constructor
  */
 function SansServer(configuration) {
-    const config = schemas.server.normalize(configuration || {});
+    if (!configuration) configuration = {};
+    if (configuration.logs === 'silent') configuration.logs = { silent: true };
+    if (configuration.logs === 'verbose') configuration.logs = { verbose: true };
+    const config = schemas.server.normalize(configuration);
     const server = Object.create(SansServer.prototype);
 
     // store configuration for this factory
