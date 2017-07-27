@@ -92,12 +92,23 @@ describe('san-server', () => {
 
         it('can silence logging without error', () => {
             const server = SansServer({ logs: { silent: true }});
-            let first;
             server.use(function(req, res, next) {
                 this.log('foo');
                 next();
             });
             return server.request();
+        });
+
+        it('can silence with shortcut config', () => {
+            expect(() => SansServer({ logs: 'silent'})).not.to.throw(Error);
+        });
+
+        it('can verbose with shortcut config', () => {
+            expect(() => SansServer({ logs: 'verbose'})).not.to.throw(Error);
+        });
+
+        it('cannot use other shortcut config', () => {
+            expect(() => SansServer({ logs: 'abc'})).to.throw(Error);
         });
 
         it('can call noop log function', () => {
