@@ -409,9 +409,12 @@ function hookObject(state) {
 }
 
 function hookString(state) {
-    if (typeof state.body !== 'string') {
+    const type = typeof state.body;
+    if (type !== 'string' && type !== 'undefined') {
         this.log('stringify', 'Converting body to string', state.body);
         this.body(state.body.toString());
+    } else {
+        this.body('');
     }
 }
 
