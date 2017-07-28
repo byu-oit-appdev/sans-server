@@ -413,7 +413,7 @@ function hookString(state) {
     if (type !== 'string' && type !== 'undefined') {
         this.log('stringify', 'Converting body to string', state.body);
         this.body(state.body.toString());
-    } else {
+    } else if (type !== 'string') {
         this.body('');
     }
 }
