@@ -298,16 +298,8 @@ function Response(request) {
      */
     Object.defineProperty(factory, 'state', {
         get: function() {
-            let body;
-            if (state.body instanceof Error) {
-                body = Error(state.body.message);
-                body.stack = state.body.stack;
-                Object.keys(state.body).forEach(key => body[key] = state.body[key]);
-            } else if (typeof state.body === 'object') {
-                body = JSON.parse(JSON.stringify(state.body))
-            } else {
-                body = state.body;
-            }
+            let body = state.body;
+            if (isPlainObject(body)) body = JSON.parse(JSON.stringify(body));
             return {
                 body: body,
                 cookies: state.cookies.map(cookie => {
@@ -421,6 +413,18 @@ function hookString(state) {
         this.log('stringify', 'Converting body to string', state.body);
         this.body(state.body.toString());
     }
+}
+
+function isPlainObject(o) {
+    if (typeof o !== 'object' || !o) return false;
+
+    const constructor = o.constructor;
+    if (typeof constructor !== 'function') return false;
+
+    const prototype = constructor.prototype;
+    if (!prototype || typeof prototype !== 'object' || !prototype.hasOwnProperty('isPrototypeOf')) return false;
+
+    return true;
 }
 
 function rawHeaders(headers, cookies) {
