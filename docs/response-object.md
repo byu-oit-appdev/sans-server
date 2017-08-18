@@ -129,6 +129,16 @@ Tell the browser to redirect to a different URL. Calling this function will caus
 
 **Returns** the [response object](#response-object) for method chaining.
 
+## Get Request Object
+
+***req : Request***
+
+Get the request object associated with the response.
+
+```js
+const request = res.req;
+```
+
 ## Get Sent Status
 
 ***sent : Boolean***
