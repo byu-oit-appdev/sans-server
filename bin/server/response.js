@@ -165,6 +165,12 @@ function Response(request) {
     };
 
     /**
+     * Get a reference to the request.
+     * @type {Request}
+     */
+    factory.req = request;
+
+    /**
      * Reset to the response to it's initial state. This does not reset the sent status.
      */
     factory.reset = function() {
