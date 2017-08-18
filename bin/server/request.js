@@ -16,144 +16,190 @@
  **/
 'use strict';
 const defer                 = require('../async/defer');
+const EventEmitter          = require('events');
+const format                = require('util').format;
 const log                   = require('./log').firer('REQUEST');
 const schemas               = require('./schemas');
 const util                  = require('../util');
 const uuid                  = require('../uuid');
 
-const instances = new WeakMap();
+const errors = {
+    body: 'Invalid body supplied to request. Expected an object, a string, or undefined. Received: %s',
+    headers: 'Invalid header structure supplied to request. Expected an object with string values. Received: %s',
+    method: 'Invalid method supplied to request. Expected one of: ' + methods.join(', ') + '. Received %s',
+    path: 'Invalid path supplied to request. Expected a string. Received: %s',
+    query: 'Invalid query supplied to request. Expected a object with property values as strings or as arrays of strings. Received: %s'
+};
+const methods = ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'];
 
 module.exports = Request;
 
 /**
- * Create a request instance.
- * @param {Object|string} [configuration={}]
+ * Generate a request instance.
+ * @param {String|Object} config A string representing the path or a configuration representing all properties
+ * to accompany the request.
  * @returns {Request}
  * @constructor
+ * @augments {EventEmitter}
  */
-function Request(configuration) {
-    if (!configuration) configuration = {};
-    if (typeof configuration === 'string') configuration = { path: configuration };
-
-    if (/\?/.test(configuration.path)) {
-        const parts = configuration.path.split('?');
-        configuration.path = parts[0];
-
-        const query = {};
-        parts[1].split('&')
-            .forEach(pair => {
-                const kv = pair.split('=');
-                query[kv[0]] = kv[1] || '';
-            });
-        configuration.query = Object.assign(query, configuration.query || {})
-    }
-
-    const config = schemas.request.normalize(configuration);
-    const factory = Object.create(Request.prototype);
-    instances.set(factory, defer());
+function Request(config) {
+    if (!(this instanceof Request)) return new Request(config);
+    if (typeof config === 'string') config = { path: config };
+    const normal = normalize(config);
 
     /**
+     * The request body.
      * @name Request#body
-     * @type {*}
+     * @type {String|Object|undefined}
      */
-    factory.body = config.body;
+    this.body = normal.body;
 
     /**
+     * The request headers. This is an object that has lower-case keys and string values.
      * @name Request#headers
-     * @type {Object<string,string>}
+     * @type {Object<String,String>}
      */
-    factory.headers = Object.keys(config.headers)
-        .reduce(function(headers, key) {
-            headers[key.toLowerCase()] = config.headers[key];
-            return headers;
-        }, {});
+    this.headers = normal.headers;
 
     /**
-     * @name Request#id
-     * @type {string}
+     * This request method. The lower case equivalents of these value are acceptable but will be automatically lower-cased.
+     * @name Request#method
+     * @type {('GET'|'DELETE'|'HEAD'|'OPTIONS'|'PATCH'|'POST'|'PUT')}
      */
-    Object.defineProperty(factory, 'id', {
-        value: uuid(),
-        writable: false
+    this.method = normal.method;
+
+    /**
+     * The request path, beginning with a '/'. Does not include domain or query string.
+     * @name Request#path
+     * @type {String}
+     */
+    this.path = normal.path;
+
+    /**
+     * An object mapping query parameters by key.
+     * @name Request#query
+     * @type {object<String,String>}
+     */
+    this.query = normal.query;
+
+    /**
+     * Get the unique ID associated with this request.
+     * @name Request#id
+     * @type {String}
+     * @readonly
+     */
+    Object.defineProperty(this, 'id', {
+        configurable: false,
+        enumerable: true,
+        value: uuid()
     });
 
     /**
-     * Produce a request log.
-     * @param title
-     * @param message
-     * @param details
-     */
-    factory.log = util.reqLog(factory, log);
-
-    /**
-     * @name Request#method
-     * @type {string}
-     */
-    factory.method = config.method;
-
-    /**
-     * @name Request#path
-     * @type {string}
-     */
-    factory.path = config.path;
-
-    /**
-     * @name Request#query
-     * @type {object<string,string>}
-     */
-    factory.query = config.query;
-
-    /**
+     * Get the request URL which consists of the path and the query parameters.
      * @name Request#url
-     * @type {string}
+     * @type {String}
+     * @readonly
      */
-    factory.url =  config.path + buildQueryString(config.query);
+    Object.defineProperty(this, 'url', {
+        configurable: false,
+        enumerable: true,
+        get: () => this.path + buildQueryString(this.query)
+    });
 
-    return factory;
+    /**
+     * Get the response object that is tied to this request.
+     * @name Request#res
+     * @type {Response}
+     */
 }
 
-/**
- * Get the promise that the request will resolve.
- * @name Request#promise
- * @type {Promise}
- */
-Object.defineProperty(Request.prototype, 'promise', {
-    get: function() {
-        return instances.get(this).promise;
-    }
-});
+Request.prototype = Object.create(EventEmitter.prototype);
+Request.prototype.name = Request;
+Request.prototype.constructor = Request;
 
-/**
- * Get the promise reject method.
- * @name Request#reject
- * @type {Function}
- */
-Object.defineProperty(Request.prototype, 'reject', {
-    get: function() {
-        return instances.get(this).reject;
-    }
-});
 
-/**
- * Get the promise resolve method.
- * @name Request#resolve
- * @type {Function}
- */
-Object.defineProperty(Request.prototype, 'resolve', {
-    get: function() {
-        return instances.get(this).resolve;
-    }
-});
-
-/**
- * Build a query string from a query map.
- * @param {object} query
- * @returns {string}
- */
 function buildQueryString(query) {
     const results = Object.keys(query).reduce(function(ar, key) {
         ar.push(key + (query[key] !== '' ? '=' + query[key] : ''));
         return ar;
     }, []);
     return results.length > 0 ? '?' + results.join('&') : '';
+}
+
+function error(config, property, suffix) {
+    let message = format(errors[property], config[property]);
+    if (suffix) message += ' ' + suffix;
+    return util.Error(message, 'EREQ');
+}
+
+function normalize(config) {
+    const result = {};
+
+    // validate body
+    result.body = util.copy(config.body);
+    switch (typeof result.body) {
+        case 'object':
+        case 'string':
+        case 'undefined':
+            break;
+        default:
+            throw error(result, 'body');
+            break;
+    }
+
+    // validate headers
+    result.headers = {};
+    if (config.headers && typeof config.headers !== 'object') throw error(result, 'headers');
+    Object.keys(result.headers).forEach(key => {
+        const value = result.headers[key];
+        if (typeof value !== 'string') throw error(result, 'headers', 'at property ' + key);
+        result.headers[key.toLowerCase()] = value;
+    });
+
+    // validate method
+    result.method = config.method;
+    if (!result.method) result.method = 'GET';
+    if (typeof result.method !== 'string') throw error(result, 'method');
+    result.method = result.method.toUpperCase();
+    if (!methods.includes(result.method)) throw error(result, 'method');
+
+    // validate query
+    result.query = util.copy(config.query);
+    if (!result.query) result.query = {};
+    if (typeof result.query !== 'object') throw error(result, 'query');
+    Object.keys(result.query).forEach(key => {
+        const value = result.query[key];
+        if (Array.isArray(value)) {
+            value.forEach((v, i) => {
+                if (typeof value !== 'string') throw error(result, 'query', 'at property ' + key + ' index ' + i);
+            })
+        } else if (typeof value !== 'string') {
+            throw error(result, 'query', 'at property ' + key);
+        }
+    });
+
+    // validate path (and extract query parameters)
+    result.path = config.path;
+    if (!result.path) result.path = '';
+    if (typeof result.path !== 'string') throw error(result, 'path');
+    if (/\?/.test(result.path)) {
+        const parts = result.path.split('?');
+        result.path = parts[0];
+        parts[1].split('&')
+            .forEach(pair => {
+                const kv = pair.split('=');
+                const key = kv[0];
+                const value = kv[1];
+                if (Array.isArray(result.query[key])) {
+                    result.query[key].push(value);
+                } else if (result.hasOwnProperty(key)) {
+                    result.query[key] = [ result.query[key], value ];
+                } else {
+                    result.query[key] = value;
+                }
+            });
+    }
+    result.path = '/' + result.path.replace(/^\//, '').replace(/\/$/, '');
+
+    return result;
 }

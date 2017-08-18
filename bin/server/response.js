@@ -15,9 +15,9 @@
  *    limitations under the License.
  **/
 'use strict';
-const cookie                = require('cookie');
+const Cookie                = require('cookie');
 const defer                 = require('../async/defer');
-const emitter               = require('../emitter');
+const EventEmitter          = require('events');
 const httpStatus            = require('http-status');
 const log                   = require('./log').firer('response');
 const util                  = require('../util');
@@ -27,12 +27,209 @@ const map = new WeakMap();
 module.exports = Response;
 
 /**
+ * Create a response instance.
+ * @param {Request} request
+ * @returns {Response}
+ * @constructor
+ * @augments {EventEmitter}
+ */
+function Response(request) {
+    if (!(this instanceof Response)) return new Response(request);
+
+    Object.defineProperty(this, '_', {
+        enumerable: false,
+        configurable: false,
+        value: {
+            body: '',
+            cookies: [],
+            headers: {},
+            req: request,
+            sent: false,
+            status: 0
+        }
+    })
+}
+
+Response.prototype = Object.create(EventEmitter.prototype);
+Response.prototype.name = Response;
+Response.prototype.constructor = Response;
+
+/**
+ * Set the response body. If an object is provided then it will be converted to JSON on send. If an Error instance
+ * is provided then it will cause the response to produce a 500 error but it will log the error details.
+ * @param {String|Object|Buffer|Error} value
+ * @returns {Response}
+ */
+Response.prototype.body = function(value) {
+    let str;
+
+    // validate input
+    if (typeof value !== 'string' && !(value instanceof Error) && !(value instanceof Buffer) && !util.isPlainObject(value)) {
+        throw util.error('Invalid body. Must be a string, a plain Object, a Buffer, or an Error.', 'ERESB');
+    }
+
+    // set body
+    this._.body = value;
+
+    // produce log
+    const message = value instanceof Error
+        ? value.message
+        : truncateString('' + value);
+    this.log('body-set', message, { value: value });
+
+    return this;
+};
+
+/**
+ * Clear a cookie.
+ * @name Response#clearCookie
+ * @param {String} name The name of the cookie.
+ * @param {Object} [options={}] The cookie options. You will need to match the domain and path information for
+ * the browser to clear the cookie.
+ * @returns {Response}
+ */
+Response.prototype.clearCookie = function(name, options) {
+    const opts = Object.assign({}, options || {}, { expires: new Date(1) });    // expired
+    return this.cookie(name, '', opts);
+};
+
+/**
+ * Clear a header.
+ * @name Response#clearHeader
+ * @param {String} key
+ * @returns {Response}
+ */
+Response.prototype.clearHeader = function(key) {
+    if (this._.headers.hasOwnProperty(key)) {
+        const value = this._.headers[key];
+        delete this._.headers[key];
+        this.log('clear-header', key + ': ' + value, {
+            name: key,
+            value: value
+        });
+    }
+    return this;
+};
+
+/**
+ * Set a cookie.
+ * @name Response#cookie
+ * @param {String} name The name of the cookie.
+ * @param {String} value The value to set for the cookie.
+ * @param {Object} [options={}]
+ * @returns {Response}
+ */
+Response.prototype.cookie = function(name, value, options) {
+    if (typeof name !== 'string') throw util.Error('Cookie name must be a non-empty string. Received: ' + name, 'ERESC');
+    if (typeof value !== 'string') throw util.Error('Cookie value must be a string. Received: ' + value, 'ERESC');
+    if (options && !util.isPlainObject(options)) throw util.Error('Cookie options must be a plain object. Received: ' + options, 'ERESC');
+    const cookie = {
+        name: name,
+        options: options,
+        serialized: Cookie.serialize(name, value, options || {}),
+        value: value
+    };
+    this._.cookies.push(cookie);
+    this.log('set-cookie', name + ': ' + value, cookie);
+    return this;
+};
+
+/**
+ * Produce a log event.
+ * @param {String} [type='log']
+ * @param {String} message
+ * @param {Object} [details]
+ * @returns {Response}
+ */
+Response.prototype.log = function(type, message, details) {
+    this.emit('log', util.log('RESPONSE', arguments));
+    return this;
+};
+
+/**
+ * Redirect the client to a new URL.
+ * @name Response#redirect
+ * @param {string} url
+ * @returns {Response}
+ */
+Response.prototype.redirect = function(url) {
+    return this.status(302)
+        .set('location', url)
+        .send();
+};
+
+/**
+ * Get a reference to the request that is tied to this response.
+ * @type {Request}
+ */
+Object.defineProperty(Response.prototype, 'req', {
+    enumerable: true,
+    get: () => this._.req
+});
+
+/**
+ * Reset to the response to it's initial state. This does not reset the sent status.
+ * @returns {Response}
+ */
+Response.prototype.reset = function() {
+    this._.body = '';
+    this._.cookies = [];
+    this._.headers = {};
+    this._.status = 0;
+    return this.log('reset', 'Response data reset.');
+};
+
+/**
+ * Determine if the response has already been sent.
+ * @name Response#sent
+ * @type {boolean}
+ */
+Object.defineProperty(Response.prototype, 'sent', {
+    enumerable: true,
+    get: () => this._.sent
+});
+
+/**
+ * Send the response.
+ * @param {String|Object|Buffer|Error} body The body to send in the response. See {@link Response#body} for details.
+ * @returns {Response}
+ * @fires Response#double-send
+ */
+Response.prototype.send = function(body) {
+    const _ = this._;
+
+    // make sure that the response is only sent once
+    if (_.sent) {
+        const err = util.Error('Response already sent for ' + this._.req.id, 'ERESS');
+        this.emit('double-send', { req: this._.req, res: this });
+        return this;
+    }
+    _.sent = true;
+
+    // update the body
+    if (arguments.length > 0) this.body(body);
+
+    // TODO: error hook
+    /*if (error) {
+        this.log('error', error.stack);
+        this.reset().status(500).body('Internal Server Error');
+    }*/
+
+    working here
+
+    return this;
+};
+
+
+
+
+/**
  * @name Response
  * @param {Request} request The request associated with this response.
  * @returns {Response}
  * @constructor
  */
-function Response(request) {
+function Response2(request) {
     const factory = Object.create(Response.prototype);
     const hooks = {
         send: [hookString, hookObject, hookError]
