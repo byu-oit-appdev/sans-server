@@ -122,6 +122,7 @@ SansServer.prototype.request = function(request, callback) {
         const req = Request(request);
         const start = Date.now();
         let timeoutId;
+        this.emit('request', req);
 
         // listen for events related the the processing of the request
         const queue = config.logs.grouped ? [] : null;
@@ -348,15 +349,18 @@ function paradigm(promise, callback) {
 function run(chain, req, res) {
     if (chain.length > 0 && !res.sent) {
         const callback = chain.shift();
-        event(req, 'run-middleware', callback.middlewareName, {
-            name: callback.middlewareName
-        });
+        const name = callback.middlewareName;
+        event(req, 'middleware', 'Begin middleware: ' + name, { name: name });
         try {
             callback(req, res, function (err) {
+                if (err) event(req, 'middleware', 'Error running middleware: ' + name + '. ' + err.stack, { name: name, error: err });
                 if (err && !res.sent) return res.send(err);
+                event(req, 'middleware', 'End middleware: ' + name, { name: name });
                 run(chain, req, res);
             });
         } catch (e) {
+            event(req, 'middleware', 'Unexpected error running middleware: ' + name + '. ' + e.stack, { name: name, error: e });
+            event(req, 'middleware', 'End middleware: ' + name, { name: name });
             res.send(e);
         }
     }
