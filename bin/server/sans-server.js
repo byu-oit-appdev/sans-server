@@ -15,12 +15,13 @@
  *    limitations under the License.
  **/
 'use strict';
-const emitter               = require('../emitter');
+const EventEmitter          = require('events');
 const Log                   = require('./log');
 const prettyPrint           = require('../pretty-print');
 const Request               = require('./request');
 const Response              = require('./response');
 const schemas               = require('./schemas');
+const util                  = require('../util');
 
 const event = Log.firer('server');
 const map = new WeakMap();
@@ -32,22 +33,20 @@ module.exports = SansServer;
  * @param [configuration]
  * @returns {SansServer}
  * @constructor
+ * @augments {EventEmitter}
  */
 function SansServer(configuration) {
+    if (!(this instanceof SansServer)) return new SansServer(configuration);
     if (!configuration) configuration = {};
     if (configuration.logs === 'silent') configuration.logs = { silent: true };
     if (configuration.logs === 'verbose') configuration.logs = { verbose: true };
     const config = schemas.server.normalize(configuration);
-    const server = Object.create(SansServer.prototype);
 
-    // store configuration for this factory
-    map.set(server, {
+    this._ = {
         config: config,
-        middleware: []
-    });
-
-    // use built-in pre-processing middleware
-    if (config.methodCheck) server.use(methodChecks(config));
+        middleware: [],
+        hooks: {}
+    };
 
     // use each middleware in configuration
     server.use.apply(server, config.middleware);
@@ -55,38 +54,25 @@ function SansServer(configuration) {
     return server;
 }
 
-/**
- * Get a copy of the configuration used to create the server instance.
- * @returns {object}
- */
-Object.defineProperty(SansServer.prototype, 'config', {
-    get: function() {
-        validateContext(this);
-        const result = Object.assign({}, map.get(this).config);
-        result.logs = Object.assign({}, result.logs);
-        result.middleware = result.middleware.slice(0);
-        result.supportedMethods = result.supportedMethods.slice(0);
-        return result;
-    }
-});
-
-/**
- * Fire an event that is specific to this SansServer instance.
- * @param {string} name The event name.
- * @param {...*} args Arguments to pass with the event.
- */
-SansServer.prototype.emit = function(name, args) {
-    emitter.emit.apply(emitter, arguments);
-};
+SansServer.prototype = Object.create(EventEmitter.prototype);
+SansServer.prototype.name = 'SansServer';
+SansServer.prototype.constructor = SansServer;
 
 /**
  * Produce a log event. This function is overwritten by middleware runner.
  * @param {string} type
  * @param {string} message
  * @param {object} [details]
+ * @fires SansServer#log
  */
 SansServer.prototype.log = function(type, message, details) {
 
+    /**
+     * A log event.
+     * @event SansServer#log
+     * @type {LogEvent}
+     */
+    this.emit('log', util.log('SERVER', arguments));
 };
 
 /**
@@ -95,6 +81,10 @@ SansServer.prototype.log = function(type, message, details) {
  * @params {object|string} [request={}] An object that has request details or a string that is a GET endpoint.
  * @params {function} [callback] The function to call once the request has been processed.
  * @returns {Promise|undefined}
+ *
+ * @fires SansServer#request
+ * @listens Request#log
+ * @listens Response#log
  */
 SansServer.prototype.request = function(request, callback) {
     // handle argument variations
@@ -106,28 +96,32 @@ SansServer.prototype.request = function(request, callback) {
     }
 
     try {
-        // validate context
-        validateContext(this);
 
         // get middleware chain
-        const server = map.get(this);
-        const config = server.config;
-        const chain = server.middleware.concat();
-        const hooks = config.hooks.concat();
+        const config = this._.config;
+        const middleware = this._.middleware.concat();
+        const hooks = this._.hooks.concat();
 
         // use built-in post-processing middleware
-        chain.push(unhandled);
+        middleware.push(unhandled);
 
         // initialize variables
-        const req = Request(request);
+        const req = Request(this, request);
+        const res = req.res;
         const start = Date.now();
         let timeoutId;
+
+        /**
+         * Request generated event.
+         * @event SansServer#request
+         * @type {Request}
+         */
         this.emit('request', req);
 
         // listen for events related the the processing of the request
         const queue = config.logs.grouped ? [] : null;
         let prev = start;
-        Log.on(req, function (firer, action, message, event) {
+        const logListener = function (firer, action, message, event) {
             if (!config.logs.silent) {
                 const now = Date.now();
                 const data = {
@@ -147,14 +141,13 @@ SansServer.prototype.request = function(request, callback) {
                     console.log(eventMessage(config.logs, data));
                 }
             }
-        });
+        };
+        req.on('log', logListener);
+        res.on('log', logListener);
 
-        // build the response handler
-        const res = Response(req);
+        const promise = util.eventPromise(res, 'send', 'error');
 
-        // add hooks to the response object
-        let hook;
-        while (hook = hooks.pop()) res.hook(hook);
+
 
         // get the promise of request resolution
         const promise = req.promise

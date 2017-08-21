@@ -24,11 +24,33 @@ const util                  = require('../util');
 
 const map = new WeakMap();
 
+/**
+ * @interface Cookie
+ * @type {object}
+ * @property {string} name The name of the cookie.
+ * @property {object} options The options use to set the cookie.
+ * @property {string} serialized The cookie as a string.
+ * @property {string} value The cookie value.
+ */
+
+/**
+ * If an error occurs while creating or sending the response then this event is emitted with the error. The
+ * error contains
+ * the send function is called multiple times for a response.
+ * @event Response#error
+ * @type {Error}
+ * @property {string} code A code the specifies the error classification.
+ * @property {string} message The error message.
+ * @property {Response} res The response that generated the error.
+ * @property {string} stack The error message stack.
+ */
+
+
 module.exports = Response;
 
 /**
  * Create a response instance.
- * @param {Request} request
+ * @param {Request} request The request that is relying on this response that is being created.
  * @returns {Response}
  * @constructor
  * @augments {EventEmitter}
@@ -43,15 +65,36 @@ function Response(request) {
             body: '',
             cookies: [],
             headers: {},
-            req: request,
             sent: false,
             status: 0
         }
-    })
+    });
+
+    /**
+     * The request that is tied to this response.
+     * @name Response#req
+     * @type {Request}
+     */
+    Object.defineProperty(this, 'req', {
+        configurable: false,
+        enumerable: true,
+        value: request
+    });
+
+    /**
+     * The sans-server instance that is tied to this response.
+     * @name Response#server
+     * @type {SansServer}
+     */
+    Object.defineProperty(this, 'server', {
+        configurable: false,
+        enumerable: true,
+        value: request.server
+    });
 }
 
 Response.prototype = Object.create(EventEmitter.prototype);
-Response.prototype.name = Response;
+Response.prototype.name = 'Response';
 Response.prototype.constructor = Response;
 
 /**
@@ -59,13 +102,15 @@ Response.prototype.constructor = Response;
  * is provided then it will cause the response to produce a 500 error but it will log the error details.
  * @param {String|Object|Buffer|Error} value
  * @returns {Response}
+ * @throws {Error}
+ * @fires Response#error
  */
 Response.prototype.body = function(value) {
     let str;
 
     // validate input
     if (typeof value !== 'string' && !(value instanceof Error) && !(value instanceof Buffer) && !util.isPlainObject(value)) {
-        throw util.error('Invalid body. Must be a string, a plain Object, a Buffer, or an Error.', 'ERESB');
+        throw error('Invalid body. Must be a string, a plain Object, a Buffer, or an Error.', 'ERESB');
     }
 
     // set body
@@ -118,11 +163,13 @@ Response.prototype.clearHeader = function(key) {
  * @param {String} value The value to set for the cookie.
  * @param {Object} [options={}]
  * @returns {Response}
+ * @throws {Error}
+ * @fires Response#error
  */
 Response.prototype.cookie = function(name, value, options) {
-    if (typeof name !== 'string') throw util.Error('Cookie name must be a non-empty string. Received: ' + name, 'ERESC');
-    if (typeof value !== 'string') throw util.Error('Cookie value must be a string. Received: ' + value, 'ERESC');
-    if (options && !util.isPlainObject(options)) throw util.Error('Cookie options must be a plain object. Received: ' + options, 'ERESC');
+    if (typeof name !== 'string') throw error('Cookie name must be a non-empty string. Received: ' + name, 'ERESC');
+    if (typeof value !== 'string') throw error('Cookie value must be a string. Received: ' + value, 'ERESC');
+    if (options && !util.isPlainObject(options)) throw error('Cookie options must be a plain object. Received: ' + options, 'ERESC');
     const cookie = {
         name: name,
         options: options,
@@ -140,8 +187,15 @@ Response.prototype.cookie = function(name, value, options) {
  * @param {String} message
  * @param {Object} [details]
  * @returns {Response}
+ * @fires Response#log
  */
 Response.prototype.log = function(type, message, details) {
+
+    /**
+     * A log event.
+     * @event Response#log
+     * @type {LogEvent}
+     */
     this.emit('log', util.log('RESPONSE', arguments));
     return this;
 };
@@ -193,17 +247,14 @@ Object.defineProperty(Response.prototype, 'sent', {
  * Send the response.
  * @param {String|Object|Buffer|Error} body The body to send in the response. See {@link Response#body} for details.
  * @returns {Response}
- * @fires Response#double-send
+ * @fires Response#send
+ * @fires Response#error
  */
 Response.prototype.send = function(body) {
     const _ = this._;
 
     // make sure that the response is only sent once
-    if (_.sent) {
-        const err = util.Error('Response already sent for ' + this._.req.id, 'ERESS');
-        this.emit('double-send', { req: this._.req, res: this });
-        return this;
-    }
+    if (_.sent) throw error('Response already sent for ' + this._.req.id, 'ERESS');
     _.sent = true;
 
     // update the body
@@ -215,327 +266,94 @@ Response.prototype.send = function(body) {
         this.reset().status(500).body('Internal Server Error');
     }*/
 
-    working here
+    // TODO: execute hooks
+
+    // log the current state
+    const rawHeaderString = rawHeaders(_.headers, _.cookies);
+    const subBody = truncateString(_.body);
+    this.log('sent', _.body === subBody ? _.body : subBody + '...', {
+        body: _.body,
+        cookies: _.cookies,
+        headers: _.headers,
+        status: _.status
+    });
+
+    /**
+     * This event signifies that the response has been sent.
+     * @event Response#send
+     * @type {Response}
+     */
+    this.emit('send', this);
 
     return this;
 };
 
-
-
+/**
+ * Send a status code with a default message.
+ * @name Response#sendStatus
+ * @param {Number} code
+ * @returns {Response}
+ */
+Response.prototype.sendStatus = function(code) {
+    return this.status(code)
+        .set('content-type', 'text/plain')
+        .send(httpStatus[code] || String(code));
+};
 
 /**
- * @name Response
- * @param {Request} request The request associated with this response.
+ * Set a header.
+ * @name Response#set
+ * @param {String} key The header name.
+ * @param {String} value The value of the header to set.
  * @returns {Response}
- * @constructor
  */
-function Response2(request) {
-    const factory = Object.create(Response.prototype);
-    const hooks = {
-        send: [hookString, hookObject, hookError]
-    };
-    const state = {
-        body: '',
-        cookies: [],
-        headers: {},
-        sent: false,
-        statusCode: 0
-    };
-    map.set(factory, {
-        error: null
+Response.prototype.set = function(key, value) {
+    this._.headers[key] = String(value);
+    this.log('set-header', key + ': ' + value, {
+        header: key,
+        value: value
     });
+    return this;
+};
 
-    /**
-     * Set the body content.
-     * @param {*} value
-     * @returns {Response}
-     */
-    factory.body = function(value) {
-        let str;
-
-        if (value instanceof Error) {
-            str = value.stack.replace(/\n/g, '\n  ');
-        } else {
-            str = truncateString('' + value);
+/**
+ * Get a copy of the current response state.
+ * @type {object}
+ * @property {String|Object|Buffer|Error} body The response body.
+ * @property {Array<Cookie>} cookies The cookies as name value pairs.
+ * @property {object} headers The headers as key value pairs where each key and value is a string.
+ * @property {string} rawHeaders A helper property that has the headers and cookies as a string, ready to supply via http.
+ * @property {number} status The status code of the response.
+ * @property {number} statusCode An alias for status.
+ */
+Object.defineProperty(Response, 'state', {
+    enumerable: true,
+    configurable: false,
+    get: () => {
+        const _ = this._;
+        return {
+            body: _.body,
+            cookies: _.cookies,
+            headers: _.headers,
+            rawHeaders: rawHeaders(_.headers, _.cookies),
+            status: _.status,
+            statusCode: _.status
         }
+    }
+});
 
-        state.body = value;
-        factory.log('body-set', str, { value: value });
-
-        return factory;
-    };
-
-    /**
-     * Clear a cookie.
-     * @name Response#clearCookie
-     * @param {string} name
-     * @param {object} [options={}]
-     * @returns {Response}
-     */
-    factory.clearCookie = function(name, options) {
-        const opts = Object.assign({}, options || {}, {
-            expires: new Date(1)        // expired
-        });
-        return factory.cookie(name, '', opts);
-    };
-
-    /**
-     * Clear a header.
-     * @name Response#clearHeader
-     * @param {string} key
-     * @returns {Response}
-     */
-    factory.clearHeader = function(key) {
-        if (state.headers.hasOwnProperty(key)) {
-            const value = state.headers[key];
-            delete state.headers[key];
-            factory.log('clear-header', key + ': ' + value, {
-                name: key,
-                value: value
-            });
-        }
-        return factory;
-    };
-
-    /**
-     * Set a cookie.
-     * @name Response#cookie
-     * @param {string} name
-     * @param {string} value
-     * @param {object} [options={}]
-     * @returns {Response}
-     */
-    factory.cookie = function(name, value, options) {
-        if (!value) value = '';
-        if (typeof value !== 'object') value = value.toString();
-        if (typeof name !== 'string') throw Error('Cookie name must be a non-empty string. Received: ' + name);
-        if (typeof value !== 'string') throw Error('Cookie value must be a string. Received: ' + value);
-        const c = {
-            name: name,
-            options: options,
-            serialized: cookie.serialize(name, value, options || {}),
-            value: value
-        };
-        state.cookies.push(c);
-
-        factory.log('set-cookie', name + ': ' + value, c);
-        return factory;
-    };
-
-    /**
-     * Add a send hook.
-     * @name Response#hook
-     * @param {function} hook
-     * @returns {Response}
-     */
-    factory.hook = function(hook) {
-        if (typeof hook !== 'function') {
-            const err = Error('Send hook expected a function. Received: ' + hook);
-            err.code = 'ESHOOK';
-            throw err;
-        }
-
-        factory.log('send-hook', 'Hook defined', { hook: hook });
-        hooks.send.push(hook);
-
-        return factory;
-    };
-
-    /**
-     * Produce a response log.
-     * @param title
-     * @param message
-     * @param details
-     */
-    factory.log = util.reqLog(request, log);
-
-    /**
-     * Redirect the client to a new URL.
-     * @name Response#redirect
-     * @param {string} url
-     * @returns {Response}
-     */
-    factory.redirect = function(url) {
-        return factory.send(302, '', {
-            'Location': url
-        });
-    };
-
-    /**
-     * Get a reference to the request.
-     * @type {Request}
-     */
-    factory.req = request;
-
-    /**
-     * Reset to the response to it's initial state. This does not reset the sent status.
-     */
-    factory.reset = function() {
-        state.body = '';
-        state.cookies = [];
-        state.headers = {};
-        state.statusCode = 0;
-        factory.log('reset', 'Response data reset.', {});
-    };
-
-    /**
-     * @name Response#sent
-     * @type {boolean}
-     */
-    Object.defineProperty(factory, 'sent', {
-        enumerable: true,
-        get: function() { return state.sent; }
-    });
-
-    /**
-     * Build then send the response
-     * @name Response#send
-     * @param {number} [code=200]
-     * @param {string|object|Error} [body]
-     * @param {object} [headers={}]
-     * @returns {Response}
-     */
-    factory.send = function(code, body, headers) {
-
-        // make sure that the response is only sent once
-        if (state.sent) {
-            const err = Error('Response already sent for ' + request.id);
-            err.code = 'ESSENT';
-            emitter.emit('error', err);
-            throw err;
-        }
-        state.sent = true;
-
-        // figure out what arguments were passed in
-        if (arguments.length === 0) {
-            code = state.statusCode;
-            body = state.body;
-            headers = {};
-        } else if (arguments.length === 1) {
-            body = arguments[0];
-            code = state.statusCode;
-            headers = {};
-        } else if (arguments.length === 2) {
-            if (typeof arguments[0] !== 'number') {
-                body = arguments[0];
-                headers = arguments[1];
-                code = state.statusCode;
-            } else {
-                headers = {};
-            }
-        }
-
-        // update status code
-        if (code !== state.statusCode) factory.status(code);
-        if (state.statusCode === 0) factory.status(200);
-
-        // update the body
-        if (body !== state.body) factory.body(body);
-
-        // set additional headers
-        Object.keys(headers).forEach(function(key) {
-            factory.set(key, headers[key]);
-        });
-
-        // call the send hooks
-        executeHooks(factory, hooks.send.slice(0), request)
-            .then(() => {
-                const store = map.get(this);
-
-                // fire an event about the current state
-                const rawHeaderString = rawHeaders(state.headers, state.cookies);
-                const subBody = truncateString(state.body);
-                factory.log('sent', state.body === subBody ? state.body : subBody + '...', {
-                    body: state.body,
-                    cookies: state.cookies,
-                    headers: state.headers,
-                    statusCode: state.statusCode
-                });
-
-                // resolve the request
-                const sendData = {
-                    body: state.body,
-                    cookies: state.cookies,
-                    headers: state.headers,
-                    rawHeaders: rawHeaderString,
-                    statusCode: state.statusCode
-                };
-                if (store.error) sendData.error = store.error;
-                request.resolve(sendData);
-            });
-
-        return factory;
-    };
-
-    /**
-     * Send a status code with a default message.
-     * @name Response#sendStatus
-     * @param {number} code
-     * @returns {Response}
-     */
-    factory.sendStatus = function(code) {
-        factory.status(code, true);
-        factory.send();
-    };
-
-    /**
-     * Set a header.
-     * @name Response#set
-     * @param {string} key
-     * @param {string} value
-     * @returns {Response}
-     */
-    factory.set = function(key, value) {
-        state.headers[key] = '' + value;
-        factory.log('set-header', key + ': ' + value, {
-            header: key,
-            value: value
-        });
-        return factory;
-    };
-
-    /**
-     * Get the current state information for the response.
-     * @name Response#state
-     * @type {{body: *, cookies: [], headers: {}, sent: boolean, statusCode: number}}
-     */
-    Object.defineProperty(factory, 'state', {
-        get: function() {
-            let body = state.body;
-            if (isPlainObject(body)) body = JSON.parse(JSON.stringify(body));
-            return {
-                body: body,
-                cookies: state.cookies.map(cookie => {
-                    const result = Object.assign({}, cookie);
-                    result.options = Object.assign({}, result.options);
-                    return result;
-                }),
-                headers: Object.assign({}, state.headers),
-                sent: state.sent,
-                statusCode: state.statusCode
-            }
-        }
-    });
-
-    /**
-     * Set the status code.
-     * @name Response#status
-     * @param {number} code
-     * @param {boolean} [includeMessage=false]
-     * @returns {Response}
-     */
-    factory.status = function(code, includeMessage) {
-        state.statusCode = code;
-        if (includeMessage) {
-            factory.set('Content-Type', 'text/plain');
-            state.body = httpStatus[code];
-        }
-        factory.log('set-status', code, { statusCode: code, includeMessage: includeMessage });
-        return factory;
-    };
-
-    return factory;
-}
+/**
+ * Set the status code.
+ * @name Response#status
+ * @param {Number} code
+ * @returns {Response}
+ */
+Response.prototype.status = function(code) {
+    const _ = this._;
+    _.status = code;
+    this.log('set-status', code, { status: code });
+    return this;
+};
 
 Response.error = function() {
     return {
@@ -549,6 +367,12 @@ Response.error = function() {
 
 Response.status = httpStatus;
 
+
+function error(res, message, code) {
+    const err = util.Error(message, code, { res: res });
+    this.log('error', 'Error ' + code + ': ' + message, err);
+    this.emit('error', err);
+}
 
 function executeHooks(response, hooks, request) {
     if (hooks.length === 0) return Promise.resolve();

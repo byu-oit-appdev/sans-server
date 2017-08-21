@@ -18,8 +18,7 @@
 const defer                 = require('../async/defer');
 const EventEmitter          = require('events');
 const format                = require('util').format;
-const log                   = require('./log').firer('REQUEST');
-const schemas               = require('./schemas');
+const Response              = require('./response');
 const util                  = require('../util');
 const uuid                  = require('../uuid');
 
@@ -36,13 +35,14 @@ module.exports = Request;
 
 /**
  * Generate a request instance.
+ * @param {SansServer} server The sans-server instance that is generating this request.
  * @param {String|Object} config A string representing the path or a configuration representing all properties
  * to accompany the request.
  * @returns {Request}
  * @constructor
  * @augments {EventEmitter}
  */
-function Request(config) {
+function Request(server, config) {
     if (!(this instanceof Request)) return new Request(config);
     if (typeof config === 'string') config = { path: config };
     const normal = normalize(config);
@@ -95,6 +95,28 @@ function Request(config) {
     });
 
     /**
+     * Get the response object that is tied to this request.
+     * @name Request#res
+     * @type {Response}
+     */
+    Object.defineProperty(this, 'res', {
+        configurable: false,
+        enumerable: true,
+        value: Response(server, this)
+    });
+
+    /**
+     * Get the sans-server instance that generated this request.
+     * @name Request#server
+     * @type {SansServer}
+     */
+    Object.defineProperty(this, 'server', {
+        configurable: false,
+        enumerable: true,
+        value: server
+    });
+
+    /**
      * Get the request URL which consists of the path and the query parameters.
      * @name Request#url
      * @type {String}
@@ -105,17 +127,30 @@ function Request(config) {
         enumerable: true,
         get: () => this.path + buildQueryString(this.query)
     });
-
-    /**
-     * Get the response object that is tied to this request.
-     * @name Request#res
-     * @type {Response}
-     */
 }
 
 Request.prototype = Object.create(EventEmitter.prototype);
-Request.prototype.name = Request;
+Request.prototype.name = 'Request';
 Request.prototype.constructor = Request;
+
+/**
+ * Produce a log event.
+ * @param {String} [type='log']
+ * @param {String} message
+ * @param {Object} [details]
+ * @returns {Request}
+ * @fires Request#log
+ */
+Request.prototype.log = function(type, message, details) {
+
+    /**
+     * A log event.
+     * @event Request#log
+     * @type {LogEvent}
+     */
+    this.emit('log', util.log('REQUEST', arguments));
+    return this;
+};
 
 
 function buildQueryString(query) {

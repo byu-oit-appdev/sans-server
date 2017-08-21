@@ -16,12 +16,49 @@
  **/
 'use strict';
 
+/**
+ * @interface LogEvent
+ * @type {Object}
+ * @property {string} category The category that the log falls within.
+ * @property {object} details An object listing all the pertinent data that is associated with the log.
+ * @property {string} message The log message.
+ * @property {string} type The sub-category that specifies the type of log message.
+ */
+
+
 exports.copy = function(value) {
     const map = new WeakMap();
     return copy(value, map);
 };
 
 exports.Error = MetaError;
+
+/**
+ * Get a promise for an event to be fired.
+ * @param {EventEmitter} emitter
+ * @param {string} event
+ * @param {string} [errEvent='error']
+ * @returns {Promise}
+ */
+exports.eventPromise = function(emitter, event, errEvent) {
+    if (!errEvent) errEvent = 'error';
+
+    const deferred = {};
+    deferred.promise = new Promise(function(resolve, reject) {
+        deferred.resolve = resolve;
+        deferred.reject = reject;
+    });
+
+    emitter.on(event, function() {
+        deferred.resolve(arguments);
+    });
+
+    emitter.on(errEvent, function() {
+        deferred.resolve(arguments);
+    });
+
+    return deferred.promise;
+};
 
 /**
  * Check to see if an object is plain.
@@ -42,6 +79,7 @@ exports.isPlainObject = function (o) {
  * Produce a log event.
  * @param {String} category
  * @param {Object} args An arguments object with: [type], message, [details]
+ * @returns {LogEvent}
  */
 exports.log = function(category, args) {
     const event = {
