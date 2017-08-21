@@ -1,5 +1,5 @@
 [![npm module downloads](http://img.shields.io/npm/dt/sans-server.svg)](https://www.npmjs.org/package/sans-server)
-[![Build status](https://img.shields.io/travis/byu-oit/sans-server.svg?style=flat)](https://travis-ci.org/byu-oit/sans-server)
+[![Build Status](https://travis-ci.org/byu-oit/sans-server.svg?branch=master)](https://travis-ci.org/byu-oit/sans-server)
 [![Coverage Status](https://coveralls.io/repos/github/byu-oit-appdev/sans-server/badge.svg?branch=master)](https://coveralls.io/github/byu-oit-appdev/sans-server?branch=master)
 
 #sans-server
