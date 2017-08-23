@@ -153,7 +153,9 @@ SansServer.prototype.request = function(request, callback) {
         if (!res.sent) res.send(err);
         if (!err.logged) {
             err.logged = true;
-            console.error(err.stack);
+            const prefix = (/^Error/.test(err.message) ? '' : 'Error') +
+                (err.code ? ' ' + err.code : '') + ': ';
+            server.log('error', prefix + err.message, err); // TODO: can I use 'this' context?
         }
     };
     server.on('error', errorHandler);
@@ -171,14 +173,40 @@ SansServer.prototype.request = function(request, callback) {
     const promise = req._.deferred.promise
         .then(() => hooks.run(req, res))
         .catch(err => {
-            const message = err.message;
-            const prefix = (/^Error/.test(message) ? '' : 'Error') +
-                (err.code ? ' ' + err.code : '') + ': ';
-            server.log('error', prefix + err.message, err);
+
+            /**
+             * If the sent request has an Error object in the body then emit the error.
+             * @event Response#error
+             * @type {Error}
+             */
+            server.emit('error', err);
+
+            server.log('transform', 'Converting error to 500 response', { value: err });
             res.reset().status(500).body(httpStatus[500]);
         })
         .then(() => {
             clearTimeout(timeoutId);
+            let body = res.state.body;
+
+            // object conversion
+            if (typeof body === 'object') {
+                this.log('transform', 'Converting object to JSON string', { value: body });
+                res.body(JSON.stringify(body)).set('Content-Type', 'application/json');
+            }
+
+            // force to string
+            body = res.state.body;
+            switch (typeof body) {
+                case 'undefined':
+                    this.log('transform', 'Setting body to empty string', { value: body });
+                    res.body('');
+                    break;
+                case 'string':
+                    break;
+                default:
+                    this.log('transform', 'Convert ' + (typeof body) + ' body to string', { value: body });
+            }
+
             return res.state;
         });
     req._.deferred.promise = promise;
