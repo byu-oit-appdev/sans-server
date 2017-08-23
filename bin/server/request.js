@@ -15,7 +15,6 @@
  *    limitations under the License.
  **/
 'use strict';
-const defer                 = require('../async/defer');
 const EventEmitter          = require('events');
 const format                = require('util').format;
 const Response              = require('./response');
@@ -25,27 +24,41 @@ const uuid                  = require('../uuid');
 const errors = {
     body: 'Invalid body supplied to request. Expected an object, a string, or undefined. Received: %s',
     headers: 'Invalid header structure supplied to request. Expected an object with string values. Received: %s',
-    method: 'Invalid method supplied to request. Expected one of: ' + methods.join(', ') + '. Received %s',
     path: 'Invalid path supplied to request. Expected a string. Received: %s',
     query: 'Invalid query supplied to request. Expected a object with property values as strings or as arrays of strings. Received: %s'
 };
-const methods = ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'];
 
 module.exports = Request;
 
 /**
  * Generate a request instance.
- * @param {SansServer} server The sans-server instance that is generating this request.
- * @param {String|Object} config A string representing the path or a configuration representing all properties
+ * @param {String|Object} [config] A string representing the path or a configuration representing all properties
  * to accompany the request.
  * @returns {Request}
  * @constructor
  * @augments {EventEmitter}
+ * @augments {Promise}
  */
-function Request(server, config) {
+function Request(config) {
     if (!(this instanceof Request)) return new Request(config);
+    if (!config) config = {};
     if (typeof config === 'string') config = { path: config };
     const normal = normalize(config);
+
+    // create a deferred promise
+    const deferred = {};
+    deferred.promise = new Promise((resolve, reject) => {
+        deferred.resolve = resolve;
+        deferred.reject = reject;
+    });
+
+    Object.defineProperty(this, '_', {
+        enumerable: false,
+        configurable: false,
+        value: {
+            deferred: deferred
+        }
+    });
 
     /**
      * The request body.
@@ -102,18 +115,7 @@ function Request(server, config) {
     Object.defineProperty(this, 'res', {
         configurable: false,
         enumerable: true,
-        value: Response(server, this)
-    });
-
-    /**
-     * Get the sans-server instance that generated this request.
-     * @name Request#server
-     * @type {SansServer}
-     */
-    Object.defineProperty(this, 'server', {
-        configurable: false,
-        enumerable: true,
-        value: server
+        value: Response(this)
     });
 
     /**
@@ -134,6 +136,15 @@ Request.prototype.name = 'Request';
 Request.prototype.constructor = Request;
 
 /**
+ * Add a rejection handler to the request promise.
+ * @param {Function} onRejected
+ * @returns {Promise}
+ */
+Request.prototype.catch = function(onRejected) {
+    return this._.deferred.promise.catch(onRejected);
+};
+
+/**
  * Produce a log event.
  * @param {String} [type='log']
  * @param {String} message
@@ -152,6 +163,17 @@ Request.prototype.log = function(type, message, details) {
     return this;
 };
 
+/**
+ * Add fulfillment or rejection handlers to the request promise.
+ * @param {Function} onFulfilled
+ * @param {Function} [onRejected]
+ * @returns {Promise}
+ */
+Request.prototype.then = function(onFulfilled, onRejected) {
+    const promise = this._.deferred.promise;
+    return promise.then.apply(promise, arguments);
+};
+
 
 function buildQueryString(query) {
     const results = Object.keys(query).reduce(function(ar, key) {
@@ -164,7 +186,10 @@ function buildQueryString(query) {
 function error(config, property, suffix) {
     let message = format(errors[property], config[property]);
     if (suffix) message += ' ' + suffix;
-    return util.Error(message, 'EREQ');
+
+    const err = Error(message);
+    err.code = 'EREQ';
+    return err;
 }
 
 function normalize(config) {
@@ -185,8 +210,8 @@ function normalize(config) {
     // validate headers
     result.headers = {};
     if (config.headers && typeof config.headers !== 'object') throw error(result, 'headers');
-    Object.keys(result.headers).forEach(key => {
-        const value = result.headers[key];
+    Object.keys(config.headers).forEach(key => {
+        const value = config.headers[key];
         if (typeof value !== 'string') throw error(result, 'headers', 'at property ' + key);
         result.headers[key.toLowerCase()] = value;
     });
@@ -196,7 +221,6 @@ function normalize(config) {
     if (!result.method) result.method = 'GET';
     if (typeof result.method !== 'string') throw error(result, 'method');
     result.method = result.method.toUpperCase();
-    if (!methods.includes(result.method)) throw error(result, 'method');
 
     // validate query
     result.query = util.copy(config.query);
