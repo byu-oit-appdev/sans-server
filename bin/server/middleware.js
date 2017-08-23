@@ -16,7 +16,6 @@
  **/
 'use strict';
 const prettyPrint   = require('../pretty-print');
-const util          = require('../util');
 
 module.exports = Middleware;
 
