@@ -17,7 +17,7 @@
 'use strict';
 const EventEmitter          = require('events');
 const httpStatus            = require('http-status');
-const Middleware            = require('./middleware');
+const Middleware            = require('sans-server-middleware');
 const prettyPrint           = require('../pretty-print');
 const Request               = require('./request');
 const schemas               = require('./schemas');
@@ -27,7 +27,19 @@ module.exports = SansServer;
 
 /**
  * Create a san-server instance.
- * @param [configuration]
+ * @param {object} [configuration] Configuration options.
+ * @param {Function[]} configuration.hooks An array of response hook functions to add to each request.
+ * @param {object} [configuration.logs] An object configuring log output.
+ * @param {boolean} [configuration.logs.duration=false] Set to true to show the time into the request at which the log occurred.
+ * @param {boolean} [configuration.logs.grouped=true] Set to true to group all logs for a single request together before outputting to console.
+ * @param {boolean} [configuration.logs.silent=false] Set to true to silence all logs.
+ * @param {boolean} [configuration.logs.timeDiff=true] Set to true to show the time difference between log events.
+ * @param {boolean} [configuration.logs.timestamp=false] Set to true to display the timestamp for each log event.
+ * @param {boolean} [configuration.logs.verbose=false] Set to true to output more details about each log event.
+ * @param {boolean} [configuration.methodCheck=true] Set to true to validate the HTTP method for each request.
+ * @param {Function[]} configuration.middleware An array of middleware functions to add to each request.
+ * @param {string[]} [configuration.supportedMethods=['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH']] An array of supported HTTP methods.
+ * @param {number} [configuration.timeout=30] The number of seconds to wait before timeout for a request.
  * @returns {SansServer}
  * @constructor
  * @augments {EventEmitter}
@@ -39,19 +51,12 @@ function SansServer(configuration) {
     if (configuration.logs === 'verbose') configuration.logs = { verbose: true };
     const config = schemas.server.normalize(configuration);
 
-    const middleware = new Middleware(this, 'middleware', 'MW', false);
-    const hooks = new Middleware(this, 'hook', 'HK', true);
-
-    config.middleware.forEach(middleware.add);
-    config.hooks.forEach(hooks.add);
-
     Object.defineProperty(this, '_', {
         configurable: false,
         enumerable: false,
         value: {
             config: config,
-            middleware: middleware,
-            hooks: hooks
+            hooks: {}
         }
     });
 }
@@ -61,10 +66,10 @@ SansServer.prototype.name = 'SansServer';
 SansServer.prototype.constructor = SansServer;
 
 /**
- * Produce a log event. This function is overwritten by middleware runner.
- * @param {string} type
- * @param {string} message
- * @param {object} [details]
+ * Produce a server log event.
+ * @param {string} [type='log'] A classification for the log event.
+ * @param {string} message The log message.
+ * @param {object} [details={}] An object listing details about the event. This value is visible in logs if log mode is set to verbose.
  * @fires SansServer#log
  */
 SansServer.prototype.log = function(type, message, details) {
@@ -79,9 +84,8 @@ SansServer.prototype.log = function(type, message, details) {
 
 /**
  * Have the server execute a request.
- * @name SansServer#request
- * @params {object|string} [request={}] An object that has request details or a string that is a GET endpoint.
- * @params {function} [callback] The function to call once the request has been processed.
+ * @param {object|string} [request={}] An object that has request details or a string that is a GET endpoint.
+ * @param {function} [callback] The function to call once the request has been processed.
  * @returns {Promise<ResponseState>}
  *
  * @fires SansServer#request
@@ -125,7 +129,7 @@ SansServer.prototype.request = function(request, callback) {
     let prev = start;
     const logListener = function (event) {
         if (!config.logs.silent) {
-            const now = Date.now();
+            const now = event.timestamp;
             const data = {
                 action: event.action,
                 category: event.category,
@@ -215,8 +219,8 @@ SansServer.prototype.request = function(request, callback) {
     if (!config.logs.silent && config.logs.grouped) {
         promise.then(state => {
             const duration = queue[queue.length - 1].now - start;
-            let log = state.status + ' ' + req.method + ' ' + req.url +
-                (state.status === 302 ? '\n  Redirect To: ' + state.headers['location']  : '') +
+            let log = state.statusCode + ' ' + req.method + ' ' + req.url +
+                (state.statusCode === 302 ? '\n  Redirect To: ' + state.headers['location']  : '') +
                 '\n  ID: ' + req.id +
                 '\n  Start: ' + new Date(start).toISOString() +
                 '\n  Duration: ' + prettyPrint.seconds(duration) +
@@ -254,25 +258,29 @@ SansServer.prototype.request = function(request, callback) {
  * @throws {MetaError}
  */
 SansServer.prototype.use = function(middleware) {
-    const length = arguments.length;
-    const store = this._.middleware;
-    for (let i = 0; i < length; i++) store.add(arguments[i]);
+    const args = Array.from(arguments);
+    args.unshift('request');
+    this.hook.apply(this, args);
 };
 
 /**
  * Specify a hook to use.
+ * @param {string} type
  * @param {...Function} hook
  * @throws {MetaError}
  */
-SansServer.prototype.hook = function(hook) {
+SansServer.prototype.hook = function(type, hook) {
     const length = arguments.length;
-    const store = this._.hooks;
-    for (let i = 0; i < length; i++) store.add(arguments[i]);
+    const hooks = this._.hooks;
+    if (!hooks[type]) hooks[type] = new Middleware(this, type);
+    const store = hooks[type];
+    for (let i = 1; i < length; i++) store.add(arguments[i]);
 };
 
 
 /**
  * Produce a consistent message from event data.
+ * @private
  * @param {object} config SansServer logs configuration.
  * @param {object} data
  * @returns {string}
@@ -281,7 +289,7 @@ function eventMessage(config, data) {
     return prettyPrint.fixedLength(data.category, 15) + '  ' +
         prettyPrint.fixedLength(data.action, 15) + '  ' +
         (config.grouped ? '' : data.requestId + '  ') +
-        (config.timeStamp ? new Date(data.now).toISOString() + '  ' : '') +
+        (config.timestamp ? new Date(data.now).toISOString() + '  ' : '') +
         (config.timeDiff ? '+' + prettyPrint.seconds(data.diff) + '  ' : '') +
         (config.duration ? '@' + prettyPrint.seconds(data.duration) + '  ' : '') +
         data.message +
@@ -292,6 +300,7 @@ function eventMessage(config, data) {
 
 /**
  * Built in middleware to handle any requests that fall through unhandled.
+ * @private
  * @param {Response} res
  */
 function unhandled(res) {

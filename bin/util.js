@@ -19,10 +19,21 @@
 /**
  * @interface LogEvent
  * @type {Object}
+ * @property {string} action The sub-category that specifies the type of log message.
  * @property {string} category The category that the log falls within.
  * @property {object} details An object listing all the pertinent data that is associated with the log.
  * @property {string} message The log message.
- * @property {string} type The sub-category that specifies the type of log message.
+ */
+
+/**
+ * If an error occurs while creating or sending the response then this event is emitted with the error. The
+ * error contains
+ * the send function is called multiple times for a response.
+ * @interface MetaError
+ * @type {Error}
+ * @property {string} code A code that specifies the error classification.
+ * @property {string} message The error message.
+ * @property {string} stack The error message stack.
  */
 
 
@@ -31,7 +42,10 @@ exports.copy = function(value) {
     return copy(value, map);
 };
 
-exports.Error = MetaError;
+
+exports.Error = function(message, code, metadata) {
+    return new MetaError(message, code, metadata);
+};
 
 /**
  * Get a promise for an event to be fired.
@@ -49,12 +63,12 @@ exports.eventPromise = function(emitter, event, errEvent) {
         deferred.reject = reject;
     });
 
-    emitter.on(event, function() {
-        deferred.resolve(arguments);
+    emitter.on(event, function(data) {
+        deferred.resolve(data);
     });
 
-    emitter.on(errEvent, function() {
-        deferred.resolve(arguments);
+    emitter.on(errEvent, function(err) {
+        deferred.resolve(err);
     });
 
     return deferred.promise;
@@ -77,16 +91,17 @@ exports.isPlainObject = function (o) {
 
 /**
  * Produce a log event.
- * @param {String} category
- * @param {Object} args An arguments object with: [type], message, [details]
+ * @param {string} category
+ * @param {object} args An arguments object with: [type], message, [details]
  * @returns {LogEvent}
  */
 exports.log = function(category, args) {
     const event = {
+        action: 'log',
         category: category,
         details: {},
         message: '',
-        type: 'log'
+        timestamp: Date.now()
     };
 
     // figure out what parameters were passed in on args
@@ -97,23 +112,22 @@ exports.log = function(category, args) {
         event.message = args[0];
         if (args[1]) event.details = args[1];
     } else if (length === 2) {
-        event.type = args[0];
+        event.action = args[0];
         event.message = args[1];
     } else {
-        event.type = args[0];
+        event.action = args[0];
         event.message = args[1];
         if (args[2]) event.details = args[2];
     }
 
     // type check
+    if (typeof event.action !== 'string') throw exports.Error('Invalid action specified. Expected a string. Received: ' + event.action, 'EPARM');
     if (typeof event.category !== 'string') throw exports.Error('Invalid category specified. Expected a string. Received: ' + event.category, 'EPARM');
-    if (typeof event.type !== 'string') throw exports.Error('Invalid type specified. Expected a string. Received: ' + event.type, 'EPARM');
     if (typeof event.message !== 'string') throw exports.Error('Invalid message specified. Expected a string. Received: ' + event.message, 'EPARM');
     if (!exports.isPlainObject(event.details)) throw exports.Error('Invalid details specified. Expected a plain object. Received: ' + event.details, 'EPARM');
 
     return event;
 };
-
 
 
 /**
@@ -154,9 +168,14 @@ function copy(obj, map) {
  * @constructor
  */
 function MetaError(message, code, metadata) {
+    message = 'Error ' + code + ': ' + message;
+
+    const stack = (new Error()).stack.split('\n');
+    stack[0] = message;
+
     this.code = code;
     this.message = message;
-    this.stack = (new Error()).stack;
+    this.stack = stack.join('\n');
     if (metadata && typeof metadata === 'object') Object.assign(this, metadata);
 }
 MetaError.prototype = Object.create(Error.prototype);

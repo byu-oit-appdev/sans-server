@@ -16,6 +16,7 @@
  **/
 'use strict';
 const expect            = require('chai').expect;
+const Request           = require('../bin/server/request');
 const SansServer        = require('../bin/server/sans-server');
 
 describe('san-server', () => {
@@ -25,7 +26,7 @@ describe('san-server', () => {
         it('promise paradigm resolves', () => {
             const server = SansServer();  // non-silent for code coverage
             const result = server.request();
-            expect(result).to.be.instanceof(Promise);
+            expect(result).to.be.instanceof(Request);
             return result;
         });
 
@@ -157,9 +158,17 @@ describe('san-server', () => {
             expect(() => server.use('abc')).to.throw(Error);
         });
 
+        it('can send response', () => {
+            const server = SansServer({ logs: { grouped: true, silent: false }});
+            server.use(function ok(req, res, next) { res.send('OK') });
+            return server.request()
+                .then(res => expect(res.body).to.equal('OK'));
+        });
+
         it('can throw error', () => {
             const server = SansServer({ middleware: [ function fail(req, res, next) { throw Error('Fail'); } ]});
-            return server.request().then(res => expect(res.statusCode).to.equal(500));
+            return server.request().then(res =>
+                expect(res.statusCode).to.equal(500));
         });
 
         it('can next error', () => {

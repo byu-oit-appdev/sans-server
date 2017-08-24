@@ -67,13 +67,6 @@ exports.server = Typed({
     type: Object,
     allowNull: false,
     properties: {
-        hooks: {
-            type: Array,
-            default: [],
-            schema: {
-                type: Function
-            }
-        },
         logs: {
             type: Object,
             allowNull: false,
@@ -95,7 +88,7 @@ exports.server = Typed({
                     type: Boolean,
                     default: true,
                 },
-                timeStamp: {
+                timestamp: {
                     type: Boolean,
                     default: false,
                 },
@@ -103,25 +96,6 @@ exports.server = Typed({
                     type: Boolean,
                     default: false,
                 },
-            }
-        },
-        methodCheck: {
-            type: Boolean,
-            default: true
-        },
-        middleware: {
-            type: Array,
-            default: [],
-            schema: {
-                type: Function
-            }
-        },
-        supportedMethods: {
-            type: Array,
-            default: httpMethods.slice(0),
-            schema: {
-                type: String,
-                enum: httpMethods.slice(0)
             }
         },
         timeout: {

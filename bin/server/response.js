@@ -16,7 +16,6 @@
  **/
 'use strict';
 const Cookie                = require('cookie');
-const EventEmitter          = require('events');
 const httpStatus            = require('http-status');
 const util                  = require('../util');
 
@@ -32,7 +31,7 @@ const util                  = require('../util');
 /**
  * @interface ResponseState
  * @type {object}
- * @property {String|Object|Buffer|Error} body The response body.
+ * @property {string|Object|Buffer|Error} body The response body.
  * @property {Array<Cookie>} cookies The cookies as name value pairs.
  * @property {object} headers The headers as key value pairs where each key and value is a string.
  * @property {string} rawHeaders A helper property that has the headers and cookies as a string, ready to supply via http.
@@ -60,7 +59,6 @@ module.exports = Response;
  * @param {Request} request The request that is relying on this response that is being created.
  * @returns {Response}
  * @constructor
- * @augments {EventEmitter}
  */
 function Response(request) {
     if (!(this instanceof Response)) return new Response(request);
@@ -74,7 +72,7 @@ function Response(request) {
             cookies: [],
             headers: {},
             sent: false,
-            status: 0
+            statusCode: 0
         }
     });
 
@@ -114,16 +112,11 @@ function Response(request) {
                 cookies: _.cookies,
                 headers: _.headers,
                 rawHeaders: rawHeaders(_.headers, _.cookies),
-                status: _.status,
-                statusCode: _.status
+                statusCode: _.statusCode
             }
         }
     });
 }
-
-Response.prototype = Object.create(EventEmitter.prototype);
-Response.prototype.name = 'Response';
-Response.prototype.constructor = Response;
 
 /**
  * Set the response body. If an object is provided then it will be converted to JSON on send. If an Error instance
@@ -135,6 +128,13 @@ Response.prototype.body = function(value) {
 
     // set body
     this._.body = value;
+
+    /**
+     * The body has been set to a value.
+     * @event Response#set-body
+     * @type {*}
+     */
+    this.res.emit('set-body', value);
 
     // produce log
     const message = value instanceof Error
@@ -148,12 +148,20 @@ Response.prototype.body = function(value) {
 /**
  * Clear a cookie.
  * @name Response#clearCookie
- * @param {String} name The name of the cookie.
+ * @param {string} name The name of the cookie.
  * @param {Object} [options={}] The cookie options. You will need to match the domain and path information for
  * the browser to clear the cookie.
  * @returns {Response}
  */
 Response.prototype.clearCookie = function(name, options) {
+
+    /**
+     * A cookie has been set to clear.
+     * @event Response#clear-cookie
+     * @type {*}
+     */
+    this.res.emit('clear-cookie', { name: name, options: options });
+
     const opts = Object.assign({}, options || {}, { expires: new Date(1) });    // expired
     return this.cookie(name, '', opts);
 };
@@ -161,13 +169,24 @@ Response.prototype.clearCookie = function(name, options) {
 /**
  * Clear a header.
  * @name Response#clearHeader
- * @param {String} key
+ * @param {string} key
  * @returns {Response}
  */
 Response.prototype.clearHeader = function(key) {
     if (this._.headers.hasOwnProperty(key)) {
+        key = key.toLowerCase();
         const value = this._.headers[key];
         delete this._.headers[key];
+
+        /**
+         * Clearing a header.
+         * @event Response#clear-header
+         * @type {object}
+         * @property {string} name The header name.
+         * @property {string} value The property value being removed.
+         */
+        this.res.emit('clear-header', { name: key, value: value });
+
         this.log('clear-header', key + ': ' + value, {
             name: key,
             value: value
@@ -179,8 +198,8 @@ Response.prototype.clearHeader = function(key) {
 /**
  * Set a cookie.
  * @name Response#cookie
- * @param {String} name The name of the cookie.
- * @param {String} value The value to set for the cookie.
+ * @param {string} name The name of the cookie.
+ * @param {string} value The value to set for the cookie.
  * @param {Object} [options={}]
  * @returns {Response}
  * @throws {Error}
@@ -197,26 +216,37 @@ Response.prototype.cookie = function(name, value, options) {
         value: value
     };
     this._.cookies.push(cookie);
+
+    /**
+     * Set a cookie.
+     * @event Response#set-cookie
+     * @type {object}
+     * @property {string} name The cookie name
+     * @property {string} value The cookie value
+     * @property {object} options The cookie options
+     */
+    this.res.emit('set-cookie', value);
+
     this.log('set-cookie', name + ': ' + value, cookie);
     return this;
 };
 
 /**
  * Produce a log event.
- * @param {String} [type='log']
- * @param {String} message
+ * @param {string} [type='log']
+ * @param {string} message
  * @param {Object} [details]
  * @returns {Response}
- * @fires Response#log
+ * @fires Request#log
  */
 Response.prototype.log = function(type, message, details) {
 
     /**
      * A log event.
-     * @event Response#log
+     * @event Request#log
      * @type {LogEvent}
      */
-    this.emit('log', util.log('RESPONSE', arguments));
+    this.res.emit('log', util.log('RESPONSE', arguments));
     return this;
 };
 
@@ -227,6 +257,15 @@ Response.prototype.log = function(type, message, details) {
  * @returns {Response}
  */
 Response.prototype.redirect = function(url) {
+    if (typeof url !== 'string') throw error(this, 'Redirect URL must be a string. Received ' + url, 'ERRD');
+
+    /**
+     * Redirect to url
+     * @event Response#redirect
+     * @type {string}
+     */
+    this.res.emit('redirect', url);
+
     return this.status(302)
         .set('location', url)
         .send();
@@ -246,16 +285,26 @@ Object.defineProperty(Response.prototype, 'req', {
  * @returns {Response}
  */
 Response.prototype.reset = function() {
+    const state = this.state;
+
     this._.body = '';
     this._.cookies = [];
     this._.headers = {};
-    this._.status = 0;
+    this._.statusCode = 0;
+
+    /**
+     * Reset response.
+     * @event Response#set-cookie
+     * @type {object} The state prior to reset
+     */
+    this.res.emit('reset', state);
+
     return this.log('reset', 'Response data reset.');
 };
 
 /**
  * Send the response.
- * @param {String|Object|Buffer|Error} [body] The body to send in the response. See {@link Response#body} for details.
+ * @param {string|Object|Buffer|Error} [body] The body to send in the response. See {@link Response#body} for details.
  * @returns {Response}
  * @fires Response#send
  * @fires Response#error
@@ -268,7 +317,7 @@ Response.prototype.send = function(body) {
     _.sent = true;
 
     // if the status is still 0 then set to 200
-    if (_.status === 0) this.status(200);
+    if (_.statusCode === 0) this.status(200);
 
     // update the body
     if (arguments.length > 0) this.body(body);
@@ -279,7 +328,7 @@ Response.prototype.send = function(body) {
         body: _.body,
         cookies: _.cookies,
         headers: _.headers,
-        status: _.status
+        statusCode: _.statusCode
     });
 
     /**
@@ -287,7 +336,7 @@ Response.prototype.send = function(body) {
      * @event Response#send
      * @type {Response}
      */
-    this.emit('send');
+    this.res.emit('send', this);
 
     // fulfill the request promise
     this.req._.deferred.resolve();
@@ -310,11 +359,23 @@ Response.prototype.sendStatus = function(code) {
 /**
  * Set a header.
  * @name Response#set
- * @param {String} key The header name.
- * @param {String} value The value of the header to set.
+ * @param {string} key The header name.
+ * @param {string} value The value of the header to set.
  * @returns {Response}
  */
 Response.prototype.set = function(key, value) {
+    if (typeof key !== 'string') throw error(this, 'Header key must be a string. Received ' + key, 'ERHDR');
+    if (typeof value !== 'string') throw error(this, 'Header value must be a string. Received ' + key, 'ERHDR');
+
+    /**
+     * Set a header.
+     * @event Response#set-header
+     * @type {object}
+     * @property {string} name The header name
+     * @property {string} value The header value
+     */
+    this.res.emit('set-header', { name: name, value: value });
+
     key = key.toLowerCase();
     this._.headers[key] = String(value);
     this.log('set-header', key + ': ' + value, {
@@ -331,30 +392,27 @@ Response.prototype.set = function(key, value) {
  * @returns {Response}
  */
 Response.prototype.status = function(code) {
+    if (typeof code !== 'number' || isNaN(code) || Math.round(code) !== code || code < 0) throw error(this, 'Redirect status code must be a non-negative integer. Received ' + code, 'ERST');
+
+    /**
+     * Set a cookie.
+     * @event Response#set-status
+     * @type {number}
+     */
+    this.res.emit('set-status', code);
+
     const _ = this._;
-    _.status = code;
-    this.log('set-status', String(code), { status: code });
+    _.statusCode = code;
+    this.log('set-status', String(code), { statusCode: code });
     return this;
 };
-
-Response.error = function() {
-    return {
-        body: httpStatus[500],
-        cookies: [],
-        headers: { 'Content-Type': 'text/plain' },
-        rawHeaders: 'Content-Type: text/plain',
-        statusCode: 500
-    };
-};
-
-Response.status = httpStatus;
 
 
 function error(res, message, code) {
     const err = Error(message);
     err.code = code;
     err.res = res;
-    res.emit('error', err);
+    res.res.emit('error', err);
     return err;
 }
 
@@ -367,7 +425,7 @@ function rawHeaders(headers, cookies) {
     cookies.forEach(function(cookie) {
         results.push('Set-Cookie: ' + cookie.serialized);
     });
-    return results.join('\n');
+    return results;
 }
 
 function truncateString(value) {

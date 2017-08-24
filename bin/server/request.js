@@ -32,7 +32,7 @@ module.exports = Request;
 
 /**
  * Generate a request instance.
- * @param {String|Object} [config] A string representing the path or a configuration representing all properties
+ * @param {string|Object} [config] A string representing the path or a configuration representing all properties
  * to accompany the request.
  * @returns {Request}
  * @constructor
@@ -63,42 +63,42 @@ function Request(config) {
     /**
      * The request body.
      * @name Request#body
-     * @type {String|Object|undefined}
+     * @type {string|Object|Buffer|undefined}
      */
     this.body = normal.body;
 
     /**
      * The request headers. This is an object that has lower-case keys and string values.
      * @name Request#headers
-     * @type {Object<String,String>}
+     * @type {Object<string,string>}
      */
     this.headers = normal.headers;
 
     /**
      * This request method. The lower case equivalents of these value are acceptable but will be automatically lower-cased.
      * @name Request#method
-     * @type {('GET'|'DELETE'|'HEAD'|'OPTIONS'|'PATCH'|'POST'|'PUT')}
+     * @type {string} One of: 'GET', 'DELETE', 'HEAD', 'OPTIONS', 'PATCH', 'POST', 'PUT'
      */
     this.method = normal.method;
 
     /**
      * The request path, beginning with a '/'. Does not include domain or query string.
      * @name Request#path
-     * @type {String}
+     * @type {string}
      */
     this.path = normal.path;
 
     /**
      * An object mapping query parameters by key.
      * @name Request#query
-     * @type {object<String,String>}
+     * @type {object<string,string>}
      */
     this.query = normal.query;
 
     /**
      * Get the unique ID associated with this request.
      * @name Request#id
-     * @type {String}
+     * @type {string}
      * @readonly
      */
     Object.defineProperty(this, 'id', {
@@ -121,7 +121,7 @@ function Request(config) {
     /**
      * Get the request URL which consists of the path and the query parameters.
      * @name Request#url
-     * @type {String}
+     * @type {string}
      * @readonly
      */
     Object.defineProperty(this, 'url', {
@@ -146,8 +146,8 @@ Request.prototype.catch = function(onRejected) {
 
 /**
  * Produce a log event.
- * @param {String} [type='log']
- * @param {String} message
+ * @param {string} [type='log']
+ * @param {string} message
  * @param {Object} [details]
  * @returns {Request}
  * @fires Request#log
@@ -209,12 +209,14 @@ function normalize(config) {
 
     // validate headers
     result.headers = {};
-    if (config.headers && typeof config.headers !== 'object') throw error(result, 'headers');
-    Object.keys(config.headers).forEach(key => {
-        const value = config.headers[key];
-        if (typeof value !== 'string') throw error(result, 'headers', 'at property ' + key);
-        result.headers[key.toLowerCase()] = value;
-    });
+    if (config.headers) {
+        if (typeof config.headers !== 'object') throw error(result, 'headers');
+        Object.keys(config.headers).forEach(key => {
+            const value = config.headers[key];
+            if (typeof value !== 'string') throw error(result, 'headers', 'at property ' + key);
+            result.headers[key.toLowerCase()] = value;
+        });
+    }
 
     // validate method
     result.method = config.method;

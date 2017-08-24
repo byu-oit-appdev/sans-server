@@ -20,6 +20,7 @@ const uuid                  = require('uuid').v4;
 const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01234567890'.split('');
 const length = chars.length;
 
+// take a UUID and shorten it
 module.exports = function() {
     return uuid()
         .split('-')

@@ -16,10 +16,23 @@
  **/
 'use strict';
 const expect        = require('chai').expect;
+const Request       = require('../bin/server/request');
 const schema        = require('../bin/server/schemas').request;
-const request       = require('../bin/server/request');
+const SansServer    = require('../bin/server/sans-server');
 
-describe('request', () => {
+describe.only('request', () => {
+
+    it('SansServer#request returns Request instance', () => {
+        const server = SansServer();
+        const req = server.request();
+        expect(req).to.be.instanceOf(Request);
+    });
+
+
+
+});
+
+describe('request 2', () => {
 
     describe('schema', () => {
 
