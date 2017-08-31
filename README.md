@@ -323,16 +323,13 @@ This constructor is invoked when calling [SansServer#request](#sansserverrequest
 
 **Emits**
 
-- [clear-cookie](#)
-- [clear-header](#)
-- [error](#)
 - [log](#) 
-- [redirect](#)
 - [send](#)
-- [set-body](#)
-- [set-cookie](#)
-- [set-header](#)
 
+**Hooks**
+
+- [request](#) - Runs when the request is initialized.
+- [response](#) - Runs in reverse when the request has a response ready.
 
 ## Request#catch
 

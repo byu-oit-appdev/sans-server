@@ -74,6 +74,13 @@ exports.eventPromise = function(emitter, event, errEvent) {
     return deferred.promise;
 };
 
+exports.finally = function(promise, callback) {
+    promise.then(
+        value => callback(null, value),
+        err => callback(err, null)
+    );
+};
+
 /**
  * Check to see if an object is plain.
  * @param {Object} o
@@ -92,13 +99,13 @@ exports.isPlainObject = function (o) {
 /**
  * Produce a log event.
  * @param {string} category
- * @param {object} args An arguments object with: [type], message, [details]
+ * @param {object} args An arguments object with: [action], message, [details]
  * @returns {LogEvent}
  */
 exports.log = function(category, args) {
     const event = {
         action: 'log',
-        category: category,
+        category: String(category),
         details: {},
         message: '',
         timestamp: Date.now()
@@ -109,22 +116,21 @@ exports.log = function(category, args) {
     if (length === 0) {
         throw exports.Error('Invalid number of log arguments. Expected at least one. Received: ' + length, 'EPARM');
     } else if (length === 1 || (args.length === 2 && typeof args[1] === 'object')) {
-        event.message = args[0];
+        event.message = String(args[0]);
         if (args[1]) event.details = args[1];
     } else if (length === 2) {
-        event.action = args[0];
-        event.message = args[1];
+        event.action = String(args[0]);
+        event.message = String(args[1]);
     } else {
-        event.action = args[0];
-        event.message = args[1];
+        event.action = String(args[0]);
+        event.message = String(args[1]);
         if (args[2]) event.details = args[2];
     }
 
     // type check
-    if (typeof event.action !== 'string') throw exports.Error('Invalid action specified. Expected a string. Received: ' + event.action, 'EPARM');
-    if (typeof event.category !== 'string') throw exports.Error('Invalid category specified. Expected a string. Received: ' + event.category, 'EPARM');
-    if (typeof event.message !== 'string') throw exports.Error('Invalid message specified. Expected a string. Received: ' + event.message, 'EPARM');
-    if (!exports.isPlainObject(event.details)) throw exports.Error('Invalid details specified. Expected a plain object. Received: ' + event.details, 'EPARM');
+    if (!exports.isPlainObject(event.details) && !(event.details instanceof Error)) {
+        event.details = {};
+    }
 
     return event;
 };

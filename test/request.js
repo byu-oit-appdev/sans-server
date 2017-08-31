@@ -20,7 +20,9 @@ const Request       = require('../bin/server/request');
 const schema        = require('../bin/server/schemas').request;
 const SansServer    = require('../bin/server/sans-server');
 
-describe.only('request', () => {
+process.on('unhandledRejection', err => console.error(err.stack));
+
+describe('request', () => {
 
     it('SansServer#request returns Request instance', () => {
         const server = SansServer();
@@ -28,9 +30,65 @@ describe.only('request', () => {
         expect(req).to.be.instanceOf(Request);
     });
 
+    describe('middleware', () => {
+        let server;
 
+        beforeEach(() => {
+            server = new SansServer();
+        });
+
+        it('calls middleware in order', () => {
+            let s = '';
+            server.use(function a(req, res, next) {
+                s += 'a';
+                next();
+            });
+            server.use(function b(req, res, next) {
+                s += 'b';
+                res.send();
+            });
+            return server.request().then(() => expect(s).to.equal('ab'));
+        });
+
+    });
+
+    describe('hooks', () => {
+        let server;
+
+        beforeEach(() => {
+            server = new SansServer();
+        });
+
+        it('calls request hooks in order', () => {
+            let s = '';
+            server.hook('request', function a(req, res, next) {
+                s += 'a';
+                next();
+            });
+            server.hook('request', function b(req, res, next) {
+                s += 'b';
+                res.send();
+            });
+            return server.request().then(() => expect(s).to.equal('ab'));
+        });
+
+        it('calls response hooks in reverse order', () => {
+            let s = '';
+            server.hook('response', function a(req, res, next) {
+                s += 'a';
+                next();
+            });
+            server.hook('response', function b(req, res, next) {
+                s += 'b';
+                next();
+            });
+            return server.request().then(() => expect(s).to.equal('ba'));
+        });
+
+    });
 
 });
+/*
 
 describe('request 2', () => {
 
@@ -180,4 +238,4 @@ describe('request 2', () => {
 
     });
 
-});
+});*/

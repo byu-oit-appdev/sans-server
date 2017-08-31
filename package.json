@@ -24,15 +24,15 @@
   "devDependencies": {
     "chai": "^3.5.0",
     "coveralls": "^2.12.0",
-    "mocha": "^3.2.0",
+    "mocha": "^3.5.0",
     "nyc": "^10.0.0"
   },
   "dependencies": {
     "cookie": "^0.3.1",
     "fully-typed": "^1.1.2",
     "http-status": "^0.2.3",
-    "sans-server-middleware": "^1.0.0",
-    "uuid": "^3.0.1"
+    "sans-server-middleware": "^1.2.2",
+    "uuid": "^3.1.0"
   },
   "repository": {
     "type": "git",

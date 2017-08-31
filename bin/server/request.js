@@ -17,21 +17,27 @@
 'use strict';
 const EventEmitter          = require('events');
 const format                = require('util').format;
+const httpStatus            = require('http-status');
+const Middleware            = require('sans-server-middleware');
 const Response              = require('./response');
 const util                  = require('../util');
 const uuid                  = require('../uuid');
 
 const errors = {
     body: 'Invalid body supplied to request. Expected an object, a string, or undefined. Received: %s',
+    method: 'Invalid method supplied to request. Expected a string or undefined. Received: %s',
     headers: 'Invalid header structure supplied to request. Expected an object with string values. Received: %s',
     path: 'Invalid path supplied to request. Expected a string. Received: %s',
     query: 'Invalid query supplied to request. Expected a object with property values as strings or as arrays of strings. Received: %s'
 };
 
+const STORE = Symbol('store');
+
 module.exports = Request;
 
 /**
  * Generate a request instance.
+ * @param {SansServer} server
  * @param {string|Object} [config] A string representing the path or a configuration representing all properties
  * to accompany the request.
  * @returns {Request}
@@ -39,61 +45,89 @@ module.exports = Request;
  * @augments {EventEmitter}
  * @augments {Promise}
  */
-function Request(config) {
-    if (!(this instanceof Request)) return new Request(config);
+function Request(server, config) {
+    if (!(this instanceof Request)) return new Request(server, config);
     if (!config) config = {};
-    if (typeof config === 'string') config = { path: config };
-    const normal = normalize(config);
+    if (typeof config !== 'object') config = { path: config };
 
-    // create a deferred promise
-    const deferred = {};
-    deferred.promise = new Promise((resolve, reject) => {
-        deferred.resolve = resolve;
-        deferred.reject = reject;
-    });
+    // IIFE closure for deferred promise management
+    const promise = (() => {
+        let resolved = false;
 
-    Object.defineProperty(this, '_', {
-        enumerable: false,
-        configurable: false,
-        value: {
-            deferred: deferred
-        }
-    });
+        // create a deferred promise that will always resolve to the response state
+        const deferred = {};
+        const result = new Promise(resolve => {
+            deferred.resolve = () => {
+                resolved = true;
+                req.log('resolved', 'Request resolved');
+                resolve(res.state);
+            };
+            deferred.reject = err => {
+                req.log('error', err.stack.replace(/\n/g, '\n  '), err);
+                if (resolved) {
+                    req.log('resolved', 'Request already resolved');
+                } else {
+                    res.reset().set('content-type', 'text/plain').status(500).body(httpStatus[500]);
+                    deferred.resolve();
+                }
+            };
+        });
+
+        // listen for response and error events
+        this.once('response', () => deferred.resolve());
+        this.once('error', err => deferred.reject(err));
+
+        return result;
+    })();
+
+    // set private store
+    this[STORE] = {
+        hooks: {},
+        promise: promise
+    };
+
+    // initialize variables
+    const req = this;
+    const res = Response(this);
+
+    // validate and normalize input
+    try {
+        working here - how to normalize request and throw errors where appropriate?
+
+        Object.assign(this, config, normalize(config));
+    } catch (err) {
+        req.log('error', err.stack, error);
+    }
 
     /**
      * The request body.
      * @name Request#body
      * @type {string|Object|Buffer|undefined}
      */
-    this.body = normal.body;
 
     /**
      * The request headers. This is an object that has lower-case keys and string values.
      * @name Request#headers
      * @type {Object<string,string>}
      */
-    this.headers = normal.headers;
 
     /**
      * This request method. The lower case equivalents of these value are acceptable but will be automatically lower-cased.
      * @name Request#method
      * @type {string} One of: 'GET', 'DELETE', 'HEAD', 'OPTIONS', 'PATCH', 'POST', 'PUT'
      */
-    this.method = normal.method;
 
     /**
      * The request path, beginning with a '/'. Does not include domain or query string.
      * @name Request#path
      * @type {string}
      */
-    this.path = normal.path;
 
     /**
      * An object mapping query parameters by key.
      * @name Request#query
      * @type {object<string,string>}
      */
-    this.query = normal.query;
 
     /**
      * Get the unique ID associated with this request.
@@ -115,7 +149,18 @@ function Request(config) {
     Object.defineProperty(this, 'res', {
         configurable: false,
         enumerable: true,
-        value: Response(this)
+        value: res
+    });
+
+    /**
+     * Get the server instance that initialized this request.
+     * @name Request#server
+     * @type {SansServer}
+     */
+    Object.defineProperty(this, 'server', {
+        enumerable: true,
+        configurable: false,
+        value: server
     });
 
     /**
@@ -127,7 +172,16 @@ function Request(config) {
     Object.defineProperty(this, 'url', {
         configurable: false,
         enumerable: true,
-        get: () => this.path + buildQueryString(this.query)
+        get: () => this.path + buildQueryString(this.query || {})
+    });
+
+    // wait one tick for any event listeners to be added
+    process.nextTick(() => {
+
+        // add request middleware and run request hooks
+        const middleware = new Middleware('request');
+        this.getHooks('request').forEach(item => middleware.add(item.weight, item.hook));
+        middleware.run(req, res).catch(err => this.emit('error', err));
     });
 }
 
@@ -141,7 +195,53 @@ Request.prototype.constructor = Request;
  * @returns {Promise}
  */
 Request.prototype.catch = function(onRejected) {
-    return this._.deferred.promise.catch(onRejected);
+    // FYI - the promise cannot be rejected
+    return Promise.resolve();
+};
+
+Request.prototype.getHooks = function(type) {
+    const hooks = this[STORE].hooks;
+    return hooks[type] || [];
+};
+
+/**
+ * Add request specific hooks
+ * @param {string} type
+ * @param {number} [weight=0]
+ * @param {...Function} hook
+ */
+Request.prototype.hook = function(type, weight, hook) {
+    const length = arguments.length;
+    const hooks = this[STORE].hooks;
+    let start = 1;
+
+    if (typeof type !== 'string') {
+        const err = Error('Expected first parameter to be a string. Received: ' + type);
+        err.code = 'ESHOOK';
+        throw err;
+    }
+
+    // handle variable input parameters
+    if (typeof arguments[1] === 'number') {
+        start = 2;
+    } else {
+        weight = 0;
+    }
+
+    if (!hooks[type]) hooks[type] = [];
+    const store = hooks[type];
+    for (let i = start; i < length; i++) {
+        const hook = arguments[i];
+        if (typeof hook !== 'function') {
+            const err = Error('Expected last parameter(s) to be a function. Received: ' + hook);
+            err.code = 'ESHOOK';
+            throw err;
+        }
+
+        const event = { weight: weight, hook: arguments[i] };
+        store.push(event);
+        this.emit('hook-add-' + type, event);
+    }
 };
 
 /**
@@ -159,8 +259,13 @@ Request.prototype.log = function(type, message, details) {
      * @event Request#log
      * @type {LogEvent}
      */
-    this.emit('log', util.log('REQUEST', arguments));
+    this.emit('log', util.log('request', arguments));
     return this;
+};
+
+Request.prototype.watchHooks = function(type, getAlso, callback) {
+    if (getAlso) this.getHooks(type).forEach(callback);
+    this.on('hook-add-' + type, callback);
 };
 
 /**
@@ -170,9 +275,22 @@ Request.prototype.log = function(type, message, details) {
  * @returns {Promise}
  */
 Request.prototype.then = function(onFulfilled, onRejected) {
-    const promise = this._.deferred.promise;
-    return promise.then.apply(promise, arguments);
+    // FYI - the promise cannot be rejected
+    return this[STORE].promise.then(onFulfilled);
 };
+
+/**
+ * This constructor has double inheritance.
+ * @param {*} instance
+ * @returns {boolean}
+ */
+Object.defineProperty(Request, Symbol.hasInstance, {
+    enumerable: false,
+    configurable: true,
+    value: function(instance) {
+        return instance instanceof EventEmitter || instance instanceof Promise;
+    }
+});
 
 
 function buildQueryString(query) {
