@@ -17,6 +17,7 @@
 'use strict';
 const EventEmitter          = require('events');
 const format                = require('util').format;
+const httpMethods           = require('./schemas').server.httpMethods;
 const httpStatus            = require('http-status');
 const Middleware            = require('sans-server-middleware');
 const Response              = require('./response');
@@ -89,15 +90,10 @@ function Request(server, config) {
     // initialize variables
     const req = this;
     const res = Response(this);
+    const pendingLogs = [];
 
     // validate and normalize input
-    try {
-        working here - how to normalize request and throw errors where appropriate?
-
-        Object.assign(this, config, normalize(config));
-    } catch (err) {
-        req.log('error', err.stack, error);
-    }
+    Object.assign(this, config, normalize(pendingLogs, config));
 
     /**
      * The request body.
@@ -178,8 +174,14 @@ function Request(server, config) {
     // wait one tick for any event listeners to be added
     process.nextTick(() => {
 
+        // log pending logs
+        pendingLogs.forEach(message => {
+            req.log('warning', message, config);
+        });
+
         // add request middleware and run request hooks
         const middleware = new Middleware('request');
+        const hooks = this[STORE].hooks.request || [];
         this.getHooks('request').forEach(item => middleware.add(item.weight, item.hook));
         middleware.run(req, res).catch(err => this.emit('error', err));
     });
@@ -199,6 +201,11 @@ Request.prototype.catch = function(onRejected) {
     return Promise.resolve();
 };
 
+/**
+ * Get all hook functions for a specific type.
+ * @param {string} type
+ * @returns {Array.<function>}
+ */
 Request.prototype.getHooks = function(type) {
     const hooks = this[STORE].hooks;
     return hooks[type] || [];
@@ -209,6 +216,7 @@ Request.prototype.getHooks = function(type) {
  * @param {string} type
  * @param {number} [weight=0]
  * @param {...Function} hook
+ * @returns {Request}
  */
 Request.prototype.hook = function(type, weight, hook) {
     const length = arguments.length;
@@ -242,6 +250,7 @@ Request.prototype.hook = function(type, weight, hook) {
         store.push(event);
         this.emit('hook-add-' + type, event);
     }
+    return this;
 };
 
 /**
@@ -263,11 +272,6 @@ Request.prototype.log = function(type, message, details) {
     return this;
 };
 
-Request.prototype.watchHooks = function(type, getAlso, callback) {
-    if (getAlso) this.getHooks(type).forEach(callback);
-    this.on('hook-add-' + type, callback);
-};
-
 /**
  * Add fulfillment or rejection handlers to the request promise.
  * @param {Function} onFulfilled
@@ -277,6 +281,19 @@ Request.prototype.watchHooks = function(type, getAlso, callback) {
 Request.prototype.then = function(onFulfilled, onRejected) {
     // FYI - the promise cannot be rejected
     return this[STORE].promise.then(onFulfilled);
+};
+
+/**
+ * Define a callback function that is called when hooks of a specific type are added.
+ * @param {string} type The hook type
+ * @param {boolean} getAlso Call getHooks in addition to listening for events.
+ * @param {function} callback The function to call when a hook is added.
+ * @returns {Request}
+ */
+Request.prototype.watchHooks = function(type, getAlso, callback) {
+    if (getAlso) this.getHooks(type).forEach(callback);
+    this.on('hook-add-' + type, callback);
+    return this;
 };
 
 /**
@@ -310,75 +327,98 @@ function error(config, property, suffix) {
     return err;
 }
 
-function normalize(config) {
-    const result = {};
-
-    // validate body
-    result.body = util.copy(config.body);
-    switch (typeof result.body) {
-        case 'object':
-        case 'string':
-        case 'undefined':
-            break;
-        default:
-            throw error(result, 'body');
-            break;
-    }
-
-    // validate headers
-    result.headers = {};
-    if (config.headers) {
-        if (typeof config.headers !== 'object') throw error(result, 'headers');
-        Object.keys(config.headers).forEach(key => {
-            const value = config.headers[key];
-            if (typeof value !== 'string') throw error(result, 'headers', 'at property ' + key);
-            result.headers[key.toLowerCase()] = value;
+function extractQueryParamsFromString(store, str) {
+    str.split('&')
+        .forEach(pair => {
+            const kv = pair.split('=');
+            const key = kv[0];
+            const value = kv[1];
+            if (Array.isArray(store[key])) {
+                store[key].push(value);
+            } else if (store.hasOwnProperty(key)) {
+                store[key] = [ store[key], value ];
+            } else {
+                store[key] = value;
+            }
         });
-    }
+}
 
-    // validate method
-    result.method = config.method;
-    if (!result.method) result.method = 'GET';
-    if (typeof result.method !== 'string') throw error(result, 'method');
-    result.method = result.method.toUpperCase();
+function normalize(pendingLogs, config) {
+    const normal = {};
 
-    // validate query
-    result.query = util.copy(config.query);
-    if (!result.query) result.query = {};
-    if (typeof result.query !== 'object') throw error(result, 'query');
-    Object.keys(result.query).forEach(key => {
-        const value = result.query[key];
-        if (Array.isArray(value)) {
-            value.forEach((v, i) => {
-                if (typeof value !== 'string') throw error(result, 'query', 'at property ' + key + ' index ' + i);
-            })
-        } else if (typeof value !== 'string') {
-            throw error(result, 'query', 'at property ' + key);
-        }
-    });
+    // validate and normalize body
+    normal.body = '';
+    if (config.hasOwnProperty('body')) util.copy(config.body);
 
-    // validate path (and extract query parameters)
-    result.path = config.path;
-    if (!result.path) result.path = '';
-    if (typeof result.path !== 'string') throw error(result, 'path');
-    if (/\?/.test(result.path)) {
-        const parts = result.path.split('?');
-        result.path = parts[0];
-        parts[1].split('&')
-            .forEach(pair => {
-                const kv = pair.split('=');
-                const key = kv[0];
-                const value = kv[1];
-                if (Array.isArray(result.query[key])) {
-                    result.query[key].push(value);
-                } else if (result.hasOwnProperty(key)) {
-                    result.query[key] = [ result.query[key], value ];
+    // validate and normalize headers
+    normal.headers = {};
+    if (config.hasOwnProperty('headers')) {
+        let err = false;
+        if (!config.headers || typeof config.headers !== 'object') {
+            pendingLogs.push('Request headers expected object. Received: ' + config.headers);
+        } else {
+            Object.keys(config.headers).forEach(key => {
+                const value = config.headers[key];
+                if (typeof value !== 'string') {
+                    err = pendingLogs.push('Request header value expected a string for key: ' + key + '. Received: ' + value);
+                } else if (typeof key !== 'string') {
+                    err = pendingLogs.push('Request header key expected to be a string. Received: ' + key, config);
                 } else {
-                    result.query[key] = value;
+                    normal.headers[key.toLowerCase()] = value;
                 }
             });
+        }
     }
-    result.path = '/' + result.path.replace(/^\//, '').replace(/\/$/, '');
 
-    return result;
+    // validate and normalize method
+    normal.method = 'GET';
+    if (config.hasOwnProperty('method')) {
+        const method = typeof config.method !== 'string' ? null : config.method.toUpperCase();
+        if (httpMethods.indexOf(method) === -1) {
+            pendingLogs.push('Request method expected one of (case-insensitive): ' + httpMethods.join(', ') + '. Received: ' + config.method);
+        } else {
+            normal.method = method;
+        }
+    }
+
+    // validate and normalize query
+    normal.query = {};
+    if (config.hasOwnProperty('query')) {
+        const type = typeof config.query;
+        if (type === 'string') {
+            extractQueryParamsFromString(normal.query, config.query);
+        } else if (config.query && type === 'object') {
+            Object.keys(config.query).forEach(key => {
+                const value = config.query[key];
+                if (typeof key !== 'string') {
+                    pendingLogs.push('Request query key expected to be a string. Received: ' + key);
+                } else if (Array.isArray(value)) {
+                    value.forEach((v, i) => {
+                        if (typeof value !== 'string') {
+                            pendingLogs.push('Request query expects value to be a string for property ' + key +
+                                ' at index ' + i + '. Received:' + value);
+                        }
+                    });
+                } else if (typeof value !== 'string') {
+                    pendingLogs.push('Request query expects value to be a string for property ' + key + '. Received:' + value);
+                }
+            });
+        } else {
+            pendingLogs.push('Request query expected a string or non-null object. Received: ' + config.query);
+        }
+    }
+
+    // validate path and extract any query parameters
+    normal.path = '';
+    if (config.hasOwnProperty('path')) {
+        if (typeof config.path !== 'string') {
+            pendingLogs.push('Request path expected a string. Received: ' + config.path);
+        } else {
+            const parts = config.path.split('?');
+            normal.path = parts[0];
+            if (parts[1]) extractQueryParamsFromString(normal.query, parts[1]);
+        }
+    }
+
+    return normal;
 }

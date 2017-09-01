@@ -68,6 +68,10 @@ function SansServer(configuration) {
     //this.hook('response', 10000, error);
 }
 
+SansServer.prototype = Object.create(EventEmitter.prototype);
+Request.prototype.name = 'SansServer';
+Request.prototype.constructor = SansServer;
+
 /**
  * Define a hook that is applied to all requests.
  * @param {string} type
@@ -208,24 +212,6 @@ SansServer.prototype.use = function(middleware) {
     this.hook.apply(this, args);
     return this;
 };
-
-
-/**
- * Error catching middleware.
- * @param {Error} err
- * @param {Request} req
- * @param {Response} res
- * @param {function} next
- */
-function error(err, req, res, next) {
-    if (!res.sent) {
-        res.send(err);
-    } else {
-        res.log('error', err.stack.replace(/\n/g, '\n  '), err);
-        res.set('content-type', 'text/plain').status(500).body(httpStatus[500]);
-        next();
-    }
-}
 
 /**
  * Produce a consistent message from event data.

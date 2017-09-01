@@ -25,29 +25,20 @@ describe('san-server', () => {
 
         it('promise paradigm resolves', () => {
             const server = SansServer();
-            return server.request().then(() => true);
+            return server.request();
         });
 
         it('promise paradigm invalid method', () => {
             const server = SansServer();
             return server.request({ method: 5 })
                 .then(res => {
-                    expect(res.statusCode).to.equal(405);
-                });
-        });
-
-        it.only('promise paradigm invalid query', () => {
-            const server = SansServer();
-            return server.request({ path: 1 })
-                .then(res => {
-                    expect(res.statusCode).to.equal(405);
+                    expect(res.statusCode).to.equal(404);
                 });
         });
 
         it('callback paradigm resolves', (done) => {
             const server = SansServer({ logs: { silent: false, grouped: false }}); // non-silent and non-grouped for code coverage
-            const req = server.request(function(err, res) {
-                expect(err).to.be.null;
+            const req = server.request(function(res) {
                 expect(res.statusCode).to.equal(404);
                 done();
             });
@@ -56,8 +47,8 @@ describe('san-server', () => {
 
         it('callback paradigm invalid method', (done) => {
             const server = SansServer();
-            server.request({ method: 5 }, function(err) {
-                expect(err).to.be.instanceof(Error);
+            server.request({ method: 5 }, function(res) {
+                expect(res.statusCode).to.equal(404);
                 done();
             });
         });
@@ -116,23 +107,24 @@ describe('san-server', () => {
 
         it('allows GET', () => {
             const server = SansServer();
-            return server.request({ method: 'GET'}).then(res => expect(res.statusCode).to.equal(404));
+            const req = server.request({ method: 'GET'});
+            expect(req.method).to.equal('GET');
         });
 
         it('does not allow FOO', () => {
             const server = SansServer();
-            return server.request({ method: 'FOO'}).then(res => expect(res.statusCode).to.equal(405));
+            const req = server.request({ method: 'FOO'});
+            expect(req.method).to.equal('GET');
         });
 
         it('string defaults to GET', () => {
-            const path = '/foo/bar';
-            const server = SansServer();
-            server.use(function(req, res, next) {
-                expect(req.method).to.equal('GET');
-                expect(req.url).to.equal(path);
-                next();
-            });
-            return server.request(path);
+            const req = SansServer().request();
+            expect(req.method).to.equal('GET');
+        });
+
+        it('converted to upper case', () => {
+            const req = SansServer().request({ method: 'put' });
+            expect(req.method).to.equal('PUT');
         });
 
     });
