@@ -51,9 +51,13 @@ function Request(server, keys, config) {
         const deferred = {};
         const result = new Promise(resolve => {
             deferred.resolve = () => {
-                resolved = true;
-                req.log('resolved', 'Request resolved');
-                resolve(res.state);
+                if (resolved) {
+                    req.log('resolved', 'Request already resolved');
+                } else {
+                    resolved = true;
+                    req.log('resolved', 'Request resolved');
+                    resolve(res.state);
+                }
             };
             deferred.reject = err => {
                 req.log('error', err.stack.replace(/\n/g, '\n  '), err);
@@ -67,7 +71,7 @@ function Request(server, keys, config) {
         });
 
         // listen for response and error events
-        this.once('response', () => deferred.resolve());
+        this.once('res-complete', () => deferred.resolve());
         this.once('error', err => deferred.reject(err));
 
         return result;
