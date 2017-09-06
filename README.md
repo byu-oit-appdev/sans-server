@@ -132,7 +132,7 @@ Add a hook to each request. For an explanation on hooks see [Hooks and Middlewar
 
 | Parameter | Description | Type | Default |
 | --- | --- | --- | --- |
-| type | The type of hook to apply the hook function to. For a list of available hooks refer to the [Hook Reference](#). | `string` | |
+| type | The type of hook to apply the hook function to. Out of the box this package has a `request` and `response` hook, but other packages or modules can add to the list of available hooks. | `string` | |
 | weight | The weight of the hook(s) being added. A lower number means the hook will run sooner and a higher number means it will run later. Negative numbers are allowed. | `number` | `0`
 | hook | A [hook function](#hooks-and-middleware). Naming the function will improve log readability. Any number of hook functions can be defined at once. | `function` | |
 
