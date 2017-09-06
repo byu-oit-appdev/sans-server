@@ -212,9 +212,9 @@ server.use(function myHook(req, res, next) {
 
 ## SansServer#request
 
-Make a request against the server and get back a [Request](#request-constructor).
+Make a request against the server and get back a [Request](#request-constructor) instance.
 
-**Signature** **<code>SansServer#request ([ request ,] [ callback ]) : Response</code>**
+**Signature** **<code>SansServer#request ([ request ,] [ callback ]) : Request</code>**
 
 **Emits** `request` : [Request](#request-constructor)
 
@@ -222,14 +222,14 @@ Make a request against the server and get back a [Request](#request-constructor)
 
 | Parameter | Description | Type | Default |
 | --- | --- | --- | --- |
-| request | A request configuration. If a `string` is used then the string is considered to be the path and all other request defaults will be applied. | `string` `object` | See [Request](#request-constructor) |
-| callback | A function to call when the request has been completed. The callback receives the [response state](#) as its only input parameter. | `function` | |
+| request | A request configuration. If a `string` is used then the string is considered to be the path and all other request defaults will be applied. | `string` `object` | See [Request Configuration](#request-configuration) |
+| callback | A function to call when the request has been completed. The callback receives the [response state](#response-state) as its only input parameter. | `function` | |
 
 ###### Request Configuration
 
 | Option | Description | Type | Default |
 | --- | --- | --- | --- |
-| body | The body of the request. This can be any data type, generally a primitive or a plain object is recommended. If the body contains a form payload then it should follow the [request body](#request-body) documentation. | | &lt;empty string&gt; |
+| body | The body of the request. This can be any data type, generally a primitive or a plain object is recommended. If the body contains a form payload then it should follow the [request body](#request-body) documentation. | | `''` |
 | headers | The request headers. This needs to be an object with string keys mapped to string values. For example: `{ headers: { 'content-type', 'plain/text' } }`. | `object` | `{}` |
 | method | The request method. Must be one of `'GET'`, `'HEAD'`, `'POST'`, `'PUT'`, `'DELETE'`, `'OPTIONS'`, `'PATCH'`. Case is not important. | `string` | `'GET'` |
 | query | The query string parameters. Each key must be a string and each value must be either a string or an array of strings. | `object` | `{}` |
@@ -618,8 +618,8 @@ Note, the request will never be rejected so it is a waste to provide an onReject
 
 | Option | Description | Type | Default |
 | --- | --- | --- | --- |
-| onFulfilled | The function to call in case of promise resolution. | `function` | |
-| onRejected | The function to call in case of promise rejection. | `function` | |
+| onFulfilled | The function to call in case of promise resolution. The function will receive the [response state](#response-state) as its input parameter. | `function` | |
+| onRejected | The function to call in case of promise rejection. (Any function you supply to this will never be called.) | `function` | |
 
 **Returns** a Promise.
 
@@ -647,16 +647,7 @@ This constructor is invoked when calling SansServer#request and an instance of t
 - req : `Request` - Get the [request](#request-constructor) object that is associated with this response object.
 - sent : `boolean` - Get whether the request has already been sent.
 - server : `SansServer` - Get the [SansServer](#sansserver-constructor) instance tied to this request.
-- state : `object` - Get the current response state. It has this structure:
-    ```
-    {
-        body: *,
-        cookies: Array.<{ name: string, options: object, serialized: string, value: string }>,
-        headers: object.<string,string>,
-        rawHeaders: Array.<string>,
-        statusCode: number
-    }
-    ```
+- state : `object` - Get the current response state. See [response state](#response-state) for details.
 - statusCode : `number` - Get or set the current response status code.
 
 **Hooks**
@@ -678,6 +669,22 @@ Unless otherwise noted, each of these events provide the `Response` instance wit
 - `res-set-header` - Fired when a header is set.
 - `res-set-status` - Fired when the status code changes.
 - `res-state-change` - Fired when any of the response state has been modified.
+
+###### Response State
+
+The response state is an object that represents the response at the point in time it was requested. It can be acquired using the `Response#state` getter.
+
+This object has the following structure:
+
+```
+{
+    body: *,
+    cookies: Array.<{ name: string, options: object, serialized: string, value: string }>,
+    headers: Object.<string,string>,
+    rawHeaders: Array.<string>,
+    statusCode: number
+}
+```
 
 ## Response#body
 
