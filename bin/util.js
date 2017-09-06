@@ -23,6 +23,7 @@
  * @property {string} category The category that the log falls within.
  * @property {object} details An object listing all the pertinent data that is associated with the log.
  * @property {string} message The log message.
+ * @property {number} timestamp When the log event occurred.
  */
 
 /**
@@ -40,11 +41,6 @@
 exports.copy = function(value) {
     const map = new WeakMap();
     return copy(value, map);
-};
-
-
-exports.Error = function(message, code, metadata) {
-    return new MetaError(message, code, metadata);
 };
 
 /**
@@ -114,7 +110,9 @@ exports.log = function(category, args) {
     // figure out what parameters were passed in on args
     const length = args.length;
     if (length === 0) {
-        throw exports.Error('Invalid number of log arguments. Expected at least one. Received: ' + length, 'EPARM');
+        const err = Error('Invalid number of log arguments. Expected at least one. Received: ' + length);
+        err.code = 'EPARM';
+        throw err;
     } else if (length === 1 || (args.length === 2 && typeof args[1] === 'object')) {
         event.message = String(args[0]);
         if (args[1]) event.details = args[1];
@@ -163,27 +161,3 @@ function copy(obj, map) {
         return obj;
     }
 }
-
-/**
- * Generate a MetaError instance.
- * @augments {Error}
- * @param {String} message The error message.
- * @param {*} code An identifier to assign the error.
- * @param {Object} [metadata] A non-null object of metadata to apply to the error. Take care not to override error
- * properties (code, message, stack, etc) unless you intend to.
- * @constructor
- */
-function MetaError(message, code, metadata) {
-    message = 'Error ' + code + ': ' + message;
-
-    const stack = (new Error()).stack.split('\n');
-    stack[0] = message;
-
-    this.code = code;
-    this.message = message;
-    this.stack = stack.join('\n');
-    if (metadata && typeof metadata === 'object') Object.assign(this, metadata);
-}
-MetaError.prototype = Object.create(Error.prototype);
-MetaError.prototype.name = 'MetaError';
-MetaError.prototype.constructor = MetaError;
