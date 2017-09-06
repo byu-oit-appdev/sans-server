@@ -4,7 +4,7 @@
 [[Coverage Status](https://coveralls.io/repos/github/byu-oit-appdev/sans-server/badge.svg?branch=master)](https://coveralls.io/github/byu-oit-appdev/sans-server?branch=master)
 -->
 
-#sans-server
+# sans-server
 
 Write code for a server, without the server.
 
