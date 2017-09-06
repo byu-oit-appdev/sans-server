@@ -87,12 +87,9 @@ function SansServer(configuration) {
     // set request hooks
     if (config.timeout) this.hook('request', -10000, timeout(config.timeout));
     this.hook('request', -100000, validMethod);
-    this.hook('request', 100000, unhandled);
-    this.hook('request', 100000, error);
 
     // set response hooks
     this.hook('response', 100000, transform);
-    this.hook('response', 100000, error);
 }
 
 SansServer.prototype = Object.create(EventEmitter.prototype);
@@ -263,23 +260,6 @@ function defineHookRunner(runners, type) {
 }
 
 /**
- * Error catching middleware.
- * @param {Error} err
- * @param {Request} req
- * @param {Response} res
- * @param {function} next
- */
-function error(err, req, res, next) {
-    if (!res.sent) {
-        res.send(err);
-    } else {
-        res.log('error', err.stack.replace(/\n/g, '\n  '), err);
-        res.set('content-type', 'text/plain').status(500).body(httpStatus[500]);
-        next();
-    }
-}
-
-/**
  * Produce a consistent message from event data.
  * @private
  * @param {object} lengths
@@ -345,7 +325,7 @@ function timeout(seconds) {
  * @param {Response} res
  * @param {function} next
  */
-function transform(req, res, next) {
+function transform(req, res, next) {    // TODO: should I take this out or make it optional?
     const state = res.state;
     const body = state.body;
     const type = typeof body;
@@ -375,20 +355,6 @@ function transform(req, res, next) {
     }
 
     next();
-}
-
-/**
- * Middleware to run if request goes unfulfilled.
- * @param {Request} req
- * @param {Response} res
- */
-function unhandled(req, res) {
-    req.log('unhandled', 'request not handled');
-    if (res.state.statusCode === 0) {
-        res.sendStatus(404);
-    } else {
-        res.send();
-    }
 }
 
 /**
