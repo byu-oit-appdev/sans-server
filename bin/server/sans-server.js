@@ -142,6 +142,7 @@ SansServer.prototype.hook = function(type, weight, hook) {
  */
 SansServer.prototype.request = function(request, callback) {
     const args = arguments;
+    const server = this;
     const start = Date.now();
     const store = this[STORE];
 
@@ -149,14 +150,14 @@ SansServer.prototype.request = function(request, callback) {
     const req = (function() {
         const length = args.length;
         if (length === 0) {
-            return Request(this, store.keys);
+            return Request(server, store.keys);
 
         } else if (length === 1 && typeof args[0] === 'function') {
             callback = args[0];
-            return Request(this, store.keys);
+            return Request(server, store.keys);
 
         } else {
-            return Request(this, store.keys, request);
+            return Request(server, store.keys, request);
         }
     })();
 
