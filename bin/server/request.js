@@ -16,21 +16,12 @@
  **/
 'use strict';
 const EventEmitter          = require('events');
-const format                = require('util').format;
 const httpMethods           = require('./schemas').server.httpMethods;
 const httpStatus            = require('http-status');
 const Middleware            = require('sans-server-middleware');
 const Response              = require('./response');
 const util                  = require('../util');
 const uuid                  = require('../uuid');
-
-const errors = {
-    body: 'Invalid body supplied to request. Expected an object, a string, or undefined. Received: %s',
-    method: 'Invalid method supplied to request. Expected a string or undefined. Received: %s',
-    headers: 'Invalid header structure supplied to request. Expected an object with string values. Received: %s',
-    path: 'Invalid path supplied to request. Expected a string. Received: %s',
-    query: 'Invalid query supplied to request. Expected a object with property values as strings or as arrays of strings. Received: %s'
-};
 
 const STORE = Symbol('store');
 
@@ -39,6 +30,7 @@ module.exports = Request;
 /**
  * Generate a request instance.
  * @param {SansServer} server
+ * @param {object} keys
  * @param {string|Object} [config] A string representing the path or a configuration representing all properties
  * to accompany the request.
  * @returns {Request}
@@ -46,8 +38,8 @@ module.exports = Request;
  * @augments {EventEmitter}
  * @augments {Promise}
  */
-function Request(server, config) {
-    if (!(this instanceof Request)) return new Request(server, config);
+function Request(server, keys, config) {
+    if (!(this instanceof Request)) return new Request(server, keys, config);
     if (!config) config = {};
     if (typeof config !== 'object') config = { path: config };
 
@@ -89,7 +81,7 @@ function Request(server, config) {
 
     // initialize variables
     const req = this;
-    const res = Response(this);
+    const res = Response(this, keys.response);
     const pendingLogs = [];
 
     // validate and normalize input
@@ -171,6 +163,24 @@ function Request(server, config) {
         get: () => this.path + buildQueryString(this.query || {})
     });
 
+
+
+    /**
+     * @name Request#hook.run
+     * @param {string} type
+     * @param {function} next
+     * @returns {Promise|undefined}
+     */
+    this.hook.reverse = runHooksMode.bind(this, 'reverse');
+
+    /**
+     * @name Request#hook.run
+     * @param {string} type
+     * @param {function} next
+     * @returns {Promise|undefined}
+     */
+    this.hook.run = runHooksMode.bind(this, 'run');
+
     // wait one tick for any event listeners to be added
     process.nextTick(() => {
 
@@ -179,11 +189,8 @@ function Request(server, config) {
             req.log('warning', message, config);
         });
 
-        // add request middleware and run request hooks
-        const middleware = new Middleware('request');
-        const hooks = this[STORE].hooks.request || [];
-        this.getHooks('request').forEach(item => middleware.add(item.weight, item.hook));
-        middleware.run(req, res).catch(err => this.emit('error', err));
+        // run request hooks
+        this.hook.run(keys.request).catch(err => this.emit('error', err));
     });
 }
 
@@ -199,16 +206,6 @@ Request.prototype.constructor = Request;
 Request.prototype.catch = function(onRejected) {
     // FYI - the promise cannot be rejected
     return Promise.resolve();
-};
-
-/**
- * Get all hook functions for a specific type.
- * @param {string} type
- * @returns {Array.<function>}
- */
-Request.prototype.getHooks = function(type) {
-    const hooks = this[STORE].hooks;
-    return hooks[type] || [];
 };
 
 /**
@@ -284,19 +281,6 @@ Request.prototype.then = function(onFulfilled, onRejected) {
 };
 
 /**
- * Define a callback function that is called when hooks of a specific type are added.
- * @param {string} type The hook type
- * @param {boolean} getAlso Call getHooks in addition to listening for events.
- * @param {function} callback The function to call when a hook is added.
- * @returns {Request}
- */
-Request.prototype.watchHooks = function(type, getAlso, callback) {
-    if (getAlso) this.getHooks(type).forEach(callback);
-    this.on('hook-add-' + type, callback);
-    return this;
-};
-
-/**
  * This constructor has double inheritance.
  * @param {*} instance
  * @returns {boolean}
@@ -316,15 +300,6 @@ function buildQueryString(query) {
         return ar;
     }, []);
     return results.length > 0 ? '?' + results.join('&') : '';
-}
-
-function error(config, property, suffix) {
-    let message = format(errors[property], config[property]);
-    if (suffix) message += ' ' + suffix;
-
-    const err = Error(message);
-    err.code = 'EREQ';
-    return err;
 }
 
 function extractQueryParamsFromString(store, str) {
@@ -421,4 +396,34 @@ function normalize(pendingLogs, config) {
     }
 
     return normal;
+}
+
+function runHooksMode(mode, symbol, next) {
+    const hooks = this[STORE].hooks;
+    let promise;
+
+    // get the hook type from the symbol
+    const type = this.server.hook.type(symbol);
+    if (!type) {
+        const err = Error('Hook type not defined: ' + key);
+        err.code = 'ESHOOK';
+        throw err;
+    }
+
+    // run the hooks
+    if (hooks[type]) {
+        const middleware = new Middleware(type);
+        hooks[type].forEach(item => {
+            middleware.add(item.weight, item.hook);
+        });
+        promise = middleware[mode](this, this.res);
+    } else {
+        promise = Promise.resolve();
+    }
+
+    if (next) {
+        promise.then(() => next(), next);
+    } else {
+        return promise;
+    }
 }
