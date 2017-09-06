@@ -17,7 +17,6 @@
 'use strict';
 const Cookie                = require('cookie');
 const httpStatus            = require('http-status');
-const Middleware            = require('sans-server-middleware');
 const util                  = require('../util');
 
 module.exports = Response;
@@ -27,22 +26,19 @@ const STORE = Symbol('store');
 /**
  * Create a response instance.
  * @param {Request} request The request that is relying on this response that is being created.
+ * @param {Symbol} key
  * @returns {Response}
  * @constructor
  */
-function Response(request) {
-    if (!(this instanceof Response)) return new Response(request);
-
-    // add response hooks
-    const hooks = new Middleware('response');
-    request.watchHooks('response', true, item => hooks.add(item.weight, item.hook));
+function Response(request, key) {
+    if (!(this instanceof Response)) return new Response(request, key);
 
     // define private store
     const store = {
         body: '',
         cookies: [],
         headers: {},
-        hooks: hooks,
+        key: key,
         sent: false,
         statusCode: 0
     };
@@ -129,6 +125,9 @@ Response.prototype.body = function(value) {
     const message = truncateString(String(value));
     this.log('set-body', message, { value: value });
 
+    this.req.emit('res-set-body', this);
+    this.req.emit('res-state-change', this);
+
     return this;
 };
 
@@ -163,6 +162,9 @@ Response.prototype.clearHeader = function(key) {
             name: key,
             value: value
         });
+
+        this.req.emit('res-clear-header', this);
+        this.req.emit('res-state-change', this);
     }
     return this;
 };
@@ -205,41 +207,10 @@ Response.prototype.cookie = function(name, value, options) {
     this[STORE].cookies.push(cookie);
 
     this.log('set-cookie', name + ': ' + value, cookie);
+
+    this.req.emit('res-set-cookie', this);
+    this.req.emit('res-state-change', this);
     return this;
-};
-
-/**
- * Get a copy of the set cookies.
- * @returns {Array.<Cookie>}
- */
-Response.prototype.getCookies = function() {
-    return this[STORE].cookies.concat();
-};
-
-
-/**
- * Get the value assigned to a specific header. Will not return cookie values.
- * @param {string} name
- * @returns {string|undefined}
- */
-Response.prototype.getHeader = function(name) {
-    return this[STORE].headers[name.toLowerCase()];
-};
-
-/**
- * Get the names of all set headers, minus cookie headers.
- * @returns {Array.<string>}
- */
-Response.prototype.getHeaderNames = function() {
-    return Object.keys(this[STORE].headers);
-};
-
-/**
- * Get a copy of the headers as an object.
- * @returns {Object.<string,string>}
- */
-Response.prototype.getHeaders = function() {
-    return Object.assign({}, this[STORE].headers);
 };
 
 /**
@@ -292,12 +263,15 @@ Response.prototype.reset = function() {
     store.statusCode = 0;
 
     this.log('reset', 'Response data reset.');
+
+    this.req.emit('res-reset', this);
+    this.req.emit('res-state-change', this);
     return this;
 };
 
 /**
  * Send the response.
- * @param {string|Object|Buffer} [body] The body to send in the response. See {@link Response#body} for details.
+ * @param {*} [body] The body to send in the response. See {@link Response#body} for details.
  * @returns {Response}
  * @throws {Error}
  */
@@ -322,12 +296,14 @@ Response.prototype.send = function(body) {
     const subBody = truncateString(store.statusCode + ' ' + store.body);
     this.log('send', subBody, this.state);
 
+    this.req.emit('res-send', this);
+
     // execute hooks and fulfill the response promise
-    store.hooks.reverse(this.req, this, (err) => {
+    this.req.hook.reverse(store.key, (err) => {
         if (err) {
             this.req.emit('error', err);
         } else {
-            this.req.emit('response');
+            this.req.emit('res-complete', this);
         }
     });
 
@@ -375,6 +351,9 @@ Response.prototype.set = function(key, value) {
         value: value
     });
 
+    this.req.emit('res-set-header', this);
+    this.req.emit('res-state-change', this);
+
     return this;
 };
 
@@ -404,6 +383,9 @@ Response.prototype.status = function(code) {
 
     this[STORE].statusCode = code;
     this.log('set-status', String(code), { statusCode: code });
+
+    this.req.emit('res-set-status', this);
+    this.req.emit('res-state-change', this);
 
     return this;
 };
