@@ -189,10 +189,13 @@ describe('san-server', () => {
 
         it('can send body as object', () => {
             const server = SansServer();
+            server.use((req, res, next) => {
+                res.send({ foo: 'bar' });
+            });
             const req = server.request();
-            req.res.send({ foo: 'bar' });
+
             return req.then(res => {
-                expect(res.body).to.equal(JSON.stringify({ foo: 'bar' }));
+                expect(res.body).to.deep.equal(JSON.stringify({ foo: 'bar' }));
                 expect(res.headers['content-type']).to.equal('application/json');
             });
         });
