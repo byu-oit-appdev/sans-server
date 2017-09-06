@@ -194,7 +194,18 @@ function Request(server, keys, config) {
         });
 
         // run request hooks
-        this.hook.run(keys.request).catch(err => this.emit('error', err));
+        this.hook.run(keys.request)
+            .then(() => {
+                if (!res.sent) {
+                    req.log('unhandled', 'request not handled');
+                    if (res.state.statusCode === 0) {
+                        res.sendStatus(404);
+                    } else {
+                        res.send();
+                    }
+                }
+            })
+            .catch(err => this.emit('error', err));
     });
 }
 
