@@ -72,17 +72,14 @@ Create a Sans Server instance that follows the specified configuration.
 
 **Methods**
 
-- [hook](#sansserverhook) - Add a hook to each request
-- [request](#sansserverrequest) - Make a request
-- [use](#sansserveruse) - Add a middleware to each request
-
-**Statics**
-
-- [Middleware](#sansservermiddlewarestatic) - A constructor for generating middleware runners.
+- [hook](#sansserverhook) - Add a hook to each request.
+- [hook.define](#sansserverhookdefine) - Define a custom hook.
+- [request](#sansserverrequest) - Make a request.
+- [use](#sansserveruse) - Add a middleware to each request.
 
 **Parameters**
 
-| Option | Description | Type | Default |
+| Parameter | Description | Type | Default |
 | --- | --- | --- | --- |
 | config | An optional object defining specific behavior for the instance. To see what options are accepted see [Config Options](#config-options). | `Object` | See [Config Options](#config-options) |
 
@@ -133,7 +130,7 @@ Add a hook to each request. For an explanation on hooks see [Hooks and Middlewar
 
 **Parameters**
 
-| Option | Description | Type | Default |
+| Parameter | Description | Type | Default |
 | --- | --- | --- | --- |
 | type | The type of hook to apply the hook function to. For a list of available hooks refer to the [Hook Reference](#). | `string` | |
 | weight | The weight of the hook(s) being added. A lower number means the hook will run sooner and a higher number means it will run later. Negative numbers are allowed. | `number` | `0`
@@ -181,6 +178,35 @@ const server = SansServer();
 server.hook('request', -100, function myHook(req, res, next) {
     // run some logic here...
     next();
+});
+```
+
+## SansServer#hook.define
+
+Define a unique hook type. Attempting to define a second hook with the same name will throw an error.
+
+**Signature** **<code>SansServer#hook.define ( type ) : symbol</code>**
+
+**Parameters**
+
+| Parameter | Description | Type | Default |
+| --- | --- | --- | --- |
+| type | The hook type to define. | `string` | |
+
+**Returns** a symbol that must be used to execute all hook functions that have subscribed to this hook chain.
+
+**Example**
+
+```js
+const SansServer = require('sans-server');
+const server = SansServer();
+
+// define custom hook
+const key = server.hook.define('my-hook');
+
+// during the request you can execute your custom hook
+server.use(function myHook(req, res, next) {
+    req.hook.run(key, next);
 });
 ```
 
@@ -405,12 +431,12 @@ Because the request instance extends the Promise you can also use `then` and `ca
 
 **Methods**
 
-- [catch](#requestcatch) - Don't use these. The request will never be rejected.
-- [getHooks](#requesthook) - Get all hook functions for a specific hook type.
+- [catch](#requestcatch) - Don't use this. The request will never be rejected.
 - [hook](#requesthook) - Add a hook to the request.
+- [hook.reverse](#requesthookreverse) - Run specified hook functions in reverse.
+- [hook.run](#requesthookrun) - Run specified hook functions in order.
 - [log](#requestlog) - Produce a request log event.
 - [then](#requestthen) - Assign a callback for the resolved promise.
-- [watchHooks](#requestwatchhooks) - Define a callback function that is called when hooks of a specific type are added.
 
 **Properties**
 
@@ -432,13 +458,12 @@ Because the request instance extends the Promise you can also use `then` and `ca
 **Hooks**
 
 - [request](#) - Runs when the request is initialized.
-- [response](#) - Runs in reverse when the response is sent.
 
 ## Request#catch
 
 Add a rejection handler to the request promise.
 
-Note, the request will never be rejected so it is a waste to use this method. In the case of an error then request will be resolved to a response with a `500` status code.
+Note, the request will never be rejected so any handler you define here will never be called. In the case of an error the request will still be resolved to a response with a `500` status code.
 
 **Signature** **<code>Request#catch ( onRejected ) : undefined</code>**
 
@@ -448,21 +473,7 @@ Note, the request will never be rejected so it is a waste to use this method. In
 | --- | --- | --- | --- |
 | onRejected | The function to call in case of promise rejection. | `function` | |
 
-**Returns** a Promise that always resolves.
-
-## Request#getHooks
-
-Get all hook functions for a specific type.
-
-**Signature** **<code>Request#getHooks ( type ) : function[]</code>**
-
-**Parameters**
-
-| Parameter | Description | Type | Default |
-| --- | --- | --- | --- |
-| type | The hook type to get all hook functions for. | `string` | |
-
-**Returns** an array of functions.
+**Returns** a resolved Promise.
 
 ## Request#hook
 
@@ -497,6 +508,70 @@ req.hook('response', 0, function(req, res, next) {
     });
     
     next();
+});
+```
+
+## Request#hook.reverse
+
+Run the specified set of hooks in reverse.
+
+**Signature** **<code>Request#hook.reverse ( key [, next ] ) : Promise | undefined</code>**
+
+**Parameters**
+
+| Parameter | Description | Type | Default |
+| --- | --- | --- | --- |
+| key | The key that will allow running of the hooks. | `symbol` | |
+| next | An optional function that will be called after executing all hooks. If an error occurs this function will receive that as its first parameter, otherwise it will not receive a parameter. | `function` | |
+
+**Returns** a Promise if the `next` function was not provided as a parameter.
+
+**Example**
+
+```js
+const SansServer = require('sans-server');
+const sansServer = SansServer();
+
+// define a custom hook
+const key = sansServer.hook.define('custom-hook');
+
+// define a hook function for the response hook
+sansServer.hook('response', 0, function(req, res, next) {
+    
+    // run the custom-hook hooks in reverse before calling next hook
+    req.hook.reverse(key, next);
+});
+```
+
+## Request#hook.run
+
+Run the specified set of hooks in order.
+
+**Signature** **<code>Request#hook.run ( key [, next ] ) : Promise | undefined</code>**
+
+**Parameters**
+
+| Parameter | Description | Type | Default |
+| --- | --- | --- | --- |
+| key | The key that will allow running of the hooks. | `symbol` | |
+| next | An optional function that will be called after executing all hooks. If an error occurs this function will receive that as its first parameter, otherwise it will not receive a parameter. | `function` | |
+
+**Returns** a Promise if the `next` function was not provided as a parameter.
+
+**Example**
+
+```js
+const SansServer = require('sans-server');
+const sansServer = SansServer();
+
+// define a custom hook
+const key = sansServer.hook.define('custom-hook');
+
+// define a hook function for the response hook
+sansServer.hook('response', 0, function(req, res, next) {
+    
+    // run the custom-hook hooks in reverse before calling next hook
+    req.hook.run(key, next);
 });
 ```
 
@@ -548,48 +623,243 @@ Note, the request will never be rejected so it is a waste to provide an onReject
 
 **Returns** a Promise.
 
-## Request#watchHooks
+## Response `constructor`
 
-Watch for hooks and call a callback when they are added. Useful for defining custom hooks.
+This constructor is invoked when calling SansServer#request and an instance of this constructor is attached to the [Request](#request-constructor) instance. This constructor cannot be invoked directly.
 
-**Signature** **<code>Request#watchHooks (type, getAlso, callback) : Request</code>**
+**Methods**
+
+- [body](#responsebody) - Set the response body.
+- [clearCookie](#responseclearcookie) - Remove a cookie by setting it as expired.
+- [clearHeader](#responseclearheader) - Remove a response header.
+- [cookie](#responsecookie) - Set a response cookie.
+- [log](#responselog) - Produce a response log event. 
+- [redirect](#responseredirect) - Redirect to client to a new location. 
+- [reset](#responsereset) - Reset the body, headers, cookies, and status code.
+- [send](#responsesend) - Send the response. 
+- [sendStatus](#response) - Send the response with a status code and status message. 
+- [set](#responseset) - Alias for [Response#setHeader](#responsesetheader) .
+- [setHeader](#responsesetheader) - Set a response header.
+- [status](#responsestatus) - Set the response status code.
+
+**Properties**
+
+- req : `Request` - Get the [request](#request) object that is associated with this response object.
+- sent : `boolean` - Get whether the request has already been sent.
+- server : `SansServer` - Get the [SansServer](#sansserver) instance tied to this request.
+- state : `object` - Get the current response state. It has this structure:
+    ```
+    {
+        body: *,
+        cookies: Array.<{ name: string, options: object, serialized: string, value: string }>,
+        headers: object.<string,string>,
+        rawHeaders: Array.<string>,
+        statusCode: number
+    }
+    ```
+- statusCode : `number` - Get or set the current response status code.
+
+**Hooks**
+
+- `response` - Runs in reverse when the response is sent. Lower weights will still run first, but two functions of equal weight will run in reverse order from when they were set.
+
+**Events**
+
+Unless otherwise noted, each of these events provide the `Response` instance with the event.
+
+- `error` - Fires when an error occurs and provides the error as event data.
+- `log` - Fires when a message is logged and provides.
+- `res-clear-header` - Fired when a header is cleared.
+- `res-complete` - Fires after `res-send` event and after all response hooks have completed.
+- `res-reset` - Fires when the body, status code, headers, and cookies have all been reset to empty.
+- `res-send` - Fires when the [Response#send](#responsesend) function has been called.
+- `res-set-body` - Fired when the body has been modified.
+- `res-set-cookie` - Fired when a cookie is set or cleared.
+- `res-set-header` - Fired when a header is set.
+- `res-set-status` - Fired when the status code changes.
+- `res-state-change` - Fired when any of the response state has been modified.
+
+## Response#body
+
+Set the response body.
+
+**Signature** **<code>Response#body ( value ) : Response</code>**
 
 **Parameters**
 
 | Parameter | Description | Type | Default |
 | --- | --- | --- | --- |
-| type | The type of hooks to listen for and to retrieve | `string` | |
-| getAlso | Whether to perform a [Request#getHooks](#requestgethooks) along with the watch. | `boolean` | |
-| callback | The function to call that will receive each hook as its parameter. | `function` | |
+| value | The value to set the body to.  This value can be set to anything but once all response hooks have run it will be converted to either a string, a Buffer, or a plain object. | any | |
 
-**Returns** the [Request](#request) instance.
+**Returns** the Response instance.
 
-**Example**
+**Emits** `res-set-body` `res-state-change`
 
-```js
-const SansServer = require('sans-server');
-const Middleware = require('sans-server-middleware');
+## Response#clearCookie
 
-const server = SansServer();
+Remove a cookie by setting it as expired.
 
-TODO:
-working here !!!!
-const middleware = new Middleware('custom');
-function customHooks() {
-    
-}
+**Signature** **<code>Response#clearCookie ( name [, options ] ) : Response</code>**
 
-server.hook('request', 0, function(req, res, next) {
-    
-});
+**Parameters**
 
-server.use(function myMiddleware(req, res, next) {
-    const start = new Date();
-    req.log('myMiddleware', 'running', { start: start.toISOString() });
-    res.log('myMiddleware', 'still running');
-});
-```
+| Parameter | Description | Type | Default |
+| --- | --- | --- | --- |
+| name | The name of the cookie to clear | `string` | |
+| options | The cookie options. You will need to match the domain and path of the client to clear the cookie. | `object` | `{}` |
 
+**Returns** the Response instance.
+
+**Emits** `res-set-cookie` `res-state-change`
+
+## Response#clearHeader
+
+Remove a response header.
+
+**Signature** **<code>Response#clearHeader ( name ) : Response</code>**
+
+**Parameters**
+
+| Parameter | Description | Type | Default |
+| --- | --- | --- | --- |
+| name | The name of the header to clear | `string` | |
+
+**Returns** the Response instance.
+
+**Emits** `res-clear-header` `res-state-change`
+
+## Response#cookie
+
+Set a response cookie.
+
+**Signature** **<code>Response#cookie ( name, value [, options ] ) : Response</code>**
+
+**Parameters**
+
+| Parameter | Description | Type | Default |
+| --- | --- | --- | --- |
+| name | The name of the cookie to set | `string` | |
+| value | The value of the cookie to set. | `string` | |
+| options | The cookie options that will be passed to the [cookie package](https://www.npmjs.com/package/cookie). | `object` | `{}` |
+
+**Returns** the Response instance.
+
+**Emits** `res-set-cookie` `res-state-change`
+
+## Response#log
+
+Produce a response log event.
+
+**Signature** **<code>Response#log ( [ type, ], message [, details ] ) : Response</code>**
+
+**Parameters**
+
+| Parameter | Description | Type | Default |
+| --- | --- | --- | --- |
+| type | The logged event's category. | `string` | `'log'` |
+| message | A string message to log. | `string` | |
+| details | A detailed object that contains information that contains information relative to the logged message. This object could be used by log event handlers that want to parse the log data. | `object` | `{}` |
+
+**Returns** the Response instance.
+
+**Emits** `log`
+
+## Response#redirect
+
+Redirect to client to a new location.
+
+**Signature** **<code>Response#redirect ( url ) : Response</code>**
+
+**Parameters**
+
+| Parameter | Description | Type | Default |
+| --- | --- | --- | --- |
+| url | The endpoint to redirect the client to. | `string` | |
+
+**Returns** the Response instance.
+
+**Emits** `res-set-status` `res-set-header` `res-send` `res-state-change`
+
+## Response#reset
+
+Reset the body, headers, cookies, and status code.
+
+**Signature** **<code>Response#reset ( ) : Response</code>**
+
+**Parameters** None
+
+**Returns** the Response instance.
+
+**Emits** `response-reset` `res-state-change`
+
+## Response#send
+
+Send the response.
+
+**Signature** **<code>Response#send ( [ body ] ) : Response</code>**
+
+**Parameters**
+
+| Parameter | Description | Type | Default |
+| --- | --- | --- | --- |
+| body | Optionally set the body during send. | any | |
+
+**Returns** the Response instance.
+
+**Emits** `res-send` `res-state-change` `res-complete` `error`
+
+## Response#sendStatus
+
+Send the response with a status code and status message.
+
+**Signature** **<code>Response#sendStatus ( code ) : Response</code>**
+
+**Parameters**
+
+| Parameter | Description | Type | Default |
+| --- | --- | --- | --- |
+| code | The status code to use to set the status and body. | `number` | |
+
+**Returns** the Response instance.
+
+**Emits** `res-set-status` `res-set-header` `res-set-body` `res-send` `res-complete` `res-state-change` `error`
+
+## Response#set
+
+Alias for [Response#setHeader](#responsesetheader).
+
+## Response#setHeader
+
+Set a response header.
+
+**Signature** **<code>Response#setHeader ( name, value ) : Response</code>**
+
+**Parameters**
+
+| Parameter | Description | Type | Default |
+| --- | --- | --- | --- |
+| name | The name of the header to set. | `string` | |
+| value | The value of the header to set. | `string` | |
+
+**Returns** the Response instance.
+
+**Emits** `res-set-header` `res-state-change`
+
+## Response#status
+
+Set the response status code.
+
+**Signature** **<code>Response#status ( code ) : Response</code>**
+
+**Parameters**
+
+| Parameter | Description | Type | Default |
+| --- | --- | --- | --- |
+| code | The status code to set. | `number` | |
+
+**Returns** the Response instance.
+
+**Emits** `res-set-status` `res-state-change`
 
 # Explanations
 
