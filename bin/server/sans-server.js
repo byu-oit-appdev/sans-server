@@ -262,6 +262,23 @@ function defineHookRunner(runners, type) {
 }
 
 /**
+ * Error catching middleware.
+ * @param {Error} err
+ * @param {Request} req
+ * @param {Response} res
+ * @param {function} next
+ */
+function error(err, req, res, next) {
+    if (!res.sent) {
+        res.send(err);
+    } else {
+        res.log('error', err.stack.replace(/\n/g, '\n  '), err);
+        res.set('content-type', 'text/plain').status(500).body(httpStatus[500]);
+        next();
+    }
+}
+
+/**
  * Produce a consistent message from event data.
  * @private
  * @param {object} lengths
