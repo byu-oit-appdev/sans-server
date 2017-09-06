@@ -659,7 +659,7 @@ This constructor is invoked when calling SansServer#request and an instance of t
 Unless otherwise noted, each of these events provide the `Response` instance with the event.
 
 - `error` - Fires when an error occurs and provides the error as event data.
-- `log` - Fires when a message is logged and provides.
+- `log` - Fires when a message is logged and provides the following structure as it's event data: `{ action: string, category: string, details: object, message: string, timestamp: number }`.
 - `res-clear-header` - Fired when a header is cleared.
 - `res-complete` - Fires after `res-send` event and after all response hooks have completed.
 - `res-reset` - Fires when the body, status code, headers, and cookies have all been reset to empty.
