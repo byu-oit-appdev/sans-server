@@ -88,8 +88,8 @@ function Response(request, key) {
         get: () => {
             return {
                 body: store.body,
-                cookies: this.getCookies(),
-                headers: this.getHeaders(),
+                cookies: store.cookies.concat(),
+                headers: Object.assign({}, store.headers),
                 rawHeaders: rawHeaders(store.headers, store.cookies),
                 statusCode: store.statusCode
             }
