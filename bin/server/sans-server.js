@@ -20,7 +20,8 @@ const httpStatus            = require('http-status');
 const prettyPrint           = require('../pretty-print');
 const Request               = require('./request');
 const schema                = require('./schemas').server;
-const util                  = require('../util');
+
+const STORE = Symbol('store');
 
 module.exports = SansServer;
 
@@ -47,25 +48,51 @@ function SansServer(configuration) {
 
     const config = schema.normalize(configuration);
     const hooks = {};
+    const runners = {
+        symbols: {},
+        types: {}
+    };
 
-    Object.defineProperty(this, '_', {
-        configurable: false,
-        enumerable: false,
-        value: {
-            config: config,
-            hooks: hooks
-        }
-    });
+    // define the store
+    const store = {
+        config: config,
+        keys: {},
+        hooks: hooks,
+        runners: runners
+    };
+    this[STORE] = store;
+
+    /**
+     * Define a hook runner and get back a Symbol that is used to execute the hooks.
+     * @name SansServer#hook.define
+     * @function
+     * @param {string} type
+     * @returns {Symbol}
+     */
+    this.hook.define = defineHookRunner.bind(this, runners);
+
+    /**
+     * Get the hook type for a specific symbol.
+     * @name SansServer#hook.type
+     * @function
+     * @param {Symbol} key The symbol to use to get they type.
+     * @returns {string}
+     */
+    this.hook.type = getHookType.bind(this, runners);
+
+    // define the request and response hooks
+    store.keys.request = this.hook.define('request');
+    store.keys.response = this.hook.define('response');
 
     // set request hooks
     if (config.timeout) this.hook('request', -10000, timeout(config.timeout));
-    this.hook('request', -10000, validMethod);
-    this.hook('request', 10000, unhandled);
-    //this.hook('request', 10000, error);
+    this.hook('request', -100000, validMethod);
+    this.hook('request', 100000, unhandled);
+    this.hook('request', 100000, error);
 
     // set response hooks
-    //this.hook('response', 10000, transform);
-    //this.hook('response', 10000, error);
+    this.hook('response', 100000, transform);
+    this.hook('response', 100000, error);
 }
 
 SansServer.prototype = Object.create(EventEmitter.prototype);
@@ -81,7 +108,7 @@ Request.prototype.constructor = SansServer;
  */
 SansServer.prototype.hook = function(type, weight, hook) {
     const length = arguments.length;
-    const hooks = this._.hooks;
+    const hooks = this[STORE].hooks;
     let start = 1;
 
     // handle variable input parameters
@@ -116,26 +143,26 @@ SansServer.prototype.hook = function(type, weight, hook) {
 SansServer.prototype.request = function(request, callback) {
     const args = arguments;
     const start = Date.now();
+    const store = this[STORE];
 
     // handle argument variations and get Request instance
     const req = (function() {
         const length = args.length;
         if (length === 0) {
-            return Request(this);
+            return Request(this, store.keys);
 
         } else if (length === 1 && typeof args[0] === 'function') {
             callback = args[0];
-            return Request(this);
+            return Request(this, store.keys);
 
         } else {
-            return Request(this, request);
+            return Request(this, store.keys, request);
         }
     })();
 
     // initialize variables
-    const config = this._.config;
-    const hooks = this._.hooks;
-    const res = req.res;
+    const config = store.config;
+    const hooks = store.hooks;
 
     // copy hooks into request
     Object.keys(hooks).forEach(type => {
@@ -213,6 +240,27 @@ SansServer.prototype.use = function(middleware) {
     return this;
 };
 
+
+/**
+ * Define a hook runner by specifying a unique type that can only be executed using the symbol returned.
+ * @param {{types: object, symbols: object}} runners
+ * @param {string} type
+ * @returns {Symbol}
+ */
+function defineHookRunner(runners, type) {
+    if (runners.hasOwnProperty(type)) {
+        const err = Error('There is already a hook runner defined for this type: ' + type);
+        err.code = 'ESHOOK';
+        throw err;
+    }
+
+    const s = Symbol(type);
+    runners.types[type] = s;
+    runners.symbols[s] = type;
+
+    return s;
+}
+
 /**
  * Produce a consistent message from event data.
  * @private
@@ -241,6 +289,16 @@ function eventMessage(lengths, config, data) {
         (config.verbose && data.event && typeof data.event === 'object'
             ? '\n\t' + JSON.stringify(data.event, null, '  ').replace(/^/gm, '\t')
             : '');
+}
+
+/**
+ * Get the hook type for a specific symbol.
+ * @param {{types: object, symbols: object}} runners
+ * @param {Symbol} key The symbol to use to get they type.
+ * @returns {string}
+ */
+function getHookType(runners, key) {
+    return runners.symbols[key];
 }
 
 /**
