@@ -61,8 +61,8 @@ server.request({ path: '/' })
 # API
 
 - [SansServer Constructor](#sansserver-constructor)
-- [Request](#request)
-- [Response](#response)
+- [Request](#request-constructor)
+- [Response](#response-constructor)
 
 ## SansServer `constructor`
 
@@ -103,7 +103,7 @@ If a string value is provided then it must either be `'silent'` or `'verbose'` a
 | timestamp | Whether to output the system time with each log. | `boolean` | `false` |
 | verbose | Whether to display detail information with each log. | `boolean` | `false` |
 
-**Returns** a [Sans Server](#sansserver) instance.
+**Returns** a [Sans Server](#sansserver-constructor) instance.
 
 **Example**
 
@@ -212,24 +212,24 @@ server.use(function myHook(req, res, next) {
 
 ## SansServer#request
 
-Make a request against the server and get back a [Request](#).
+Make a request against the server and get back a [Request](#request-constructor).
 
 **Signature** **<code>SansServer#request ([ request ,] [ callback ]) : Response</code>**
 
-**Emits** `request` : [Request](#)
+**Emits** `request` : [Request](#request-constructor)
 
 **Parameters**
 
 | Parameter | Description | Type | Default |
 | --- | --- | --- | --- |
-| request | A request configuration. If a `string` is used then the string is considered to be the path and all other request defaults will be applied. | `string` `object` | See [Request](#) |
+| request | A request configuration. If a `string` is used then the string is considered to be the path and all other request defaults will be applied. | `string` `object` | See [Request](#request-constructor) |
 | callback | A function to call when the request has been completed. The callback receives the [response state](#) as its only input parameter. | `function` | |
 
 ###### Request Configuration
 
 | Option | Description | Type | Default |
 | --- | --- | --- | --- |
-| body | The body of the request. This can be any data type, generally a primitive or a plain object is recommended. If the body contains a form payload then it should follow the [request body](#) documentation. | | &lt;empty string&gt; |
+| body | The body of the request. This can be any data type, generally a primitive or a plain object is recommended. If the body contains a form payload then it should follow the [request body](#request-body) documentation. | | &lt;empty string&gt; |
 | headers | The request headers. This needs to be an object with string keys mapped to string values. For example: `{ headers: { 'content-type', 'plain/text' } }`. | `object` | `{}` |
 | method | The request method. Must be one of `'GET'`, `'HEAD'`, `'POST'`, `'PUT'`, `'DELETE'`, `'OPTIONS'`, `'PATCH'`. Case is not important. | `string` | `'GET'` |
 | query | The query string parameters. Each key must be a string and each value must be either a string or an array of strings. | `object` | `{}` |
@@ -300,7 +300,7 @@ sansServer.request({ body: body });
 
 Optionally the `headers` property for each form input can be omitted, but the `content` property is always required and must be a string.
 
-**Returns** a [Request](#) instance.
+**Returns** a [Request](#request-constructor) instance.
 
 **Callback Example**
 
@@ -446,7 +446,7 @@ Because the request instance extends the Promise you can also use `then` and `ca
 - [method](#requestmethod) - Get or set the request method. 
 - [path](#requestpath) - Get or set the request path. 
 - [query](#requestquery) - Get or set the request query parameters.
-- [res](#requestres) - Get the [Response](#response) instance tied to this request.
+- [res](#requestres) - Get the [Response](#response-constructor) instance tied to this request.
 - [server](#requestserver) - Get a reference to the Sans Server instance that made this request.
 - [url](#url) - Get the request URL, a combination of the path and query string parameters.
 
@@ -457,7 +457,7 @@ Because the request instance extends the Promise you can also use `then` and `ca
 
 **Hooks**
 
-- [request](#) - Runs when the request is initialized.
+- `request` - Runs when the request is initialized.
 
 ## Request#catch
 
@@ -489,7 +489,7 @@ Add a hook for just this request. Use [SansServer#hook](#sansserverhook) to add 
 | weight | How soon the hook should run in the hook sequence. Lower numbers run sooner and higher numbers run later. | `number` | `0` |
 | function | The hook for which the defined functions will be executed. | `string` | |
 
-**Returns** the [Request](#request) instance.
+**Returns** the [Request](#request-constructor) instance.
 
 **Example**
 
@@ -591,7 +591,7 @@ Produce a log event while processing a request.
 | message | The log message. | `string` `object` | |
 | details | A string or object that only displays when logging is set to verbose. | `string` `object` | `{}` |
 
-**Returns** the [Request](#request) instance.
+**Returns** the [Request](#request-constructor) instance.
 
 **Example**
 
@@ -637,16 +637,16 @@ This constructor is invoked when calling SansServer#request and an instance of t
 - [redirect](#responseredirect) - Redirect to client to a new location. 
 - [reset](#responsereset) - Reset the body, headers, cookies, and status code.
 - [send](#responsesend) - Send the response. 
-- [sendStatus](#response) - Send the response with a status code and status message. 
+- [sendStatus](#responsesendstatus) - Send the response with a status code and status message. 
 - [set](#responseset) - Alias for [Response#setHeader](#responsesetheader) .
 - [setHeader](#responsesetheader) - Set a response header.
 - [status](#responsestatus) - Set the response status code.
 
 **Properties**
 
-- req : `Request` - Get the [request](#request) object that is associated with this response object.
+- req : `Request` - Get the [request](#request-constructor) object that is associated with this response object.
 - sent : `boolean` - Get whether the request has already been sent.
-- server : `SansServer` - Get the [SansServer](#sansserver) instance tied to this request.
+- server : `SansServer` - Get the [SansServer](#sansserver-constructor) instance tied to this request.
 - state : `object` - Get the current response state. It has this structure:
     ```
     {
