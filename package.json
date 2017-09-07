@@ -8,7 +8,7 @@
   },
   "scripts": {
     "test": "mocha test/*.js",
-    "coverage": "nyc mocha test/*.js",
+    "coverage": "nyc --reporter=html mocha test/*.js",
     "coverage:report": "nyc mocha test/*.js && nyc report --reporter=text-lcov | coveralls"
   },
   "keywords": [
@@ -31,7 +31,7 @@
     "cookie": "^0.3.1",
     "fully-typed": "^1.1.2",
     "http-status": "^0.2.3",
-    "sans-server-middleware": "^1.2.2",
+    "sans-server-middleware": "^1.2.3",
     "uuid": "^3.1.0"
   },
   "repository": {
