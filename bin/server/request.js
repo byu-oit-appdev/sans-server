@@ -391,7 +391,7 @@ function normalize(pendingLogs, config) {
                         if (v === true || typeof v === 'string') {
                             normal.query[key].push(v);
                         } else {
-                            pendingLogs.push('Request query expects value to be a string for property ' + key +
+                            pendingLogs.push('Request query expects value to be a string or true for property ' + key +
                                 ' at index ' + i + '. Received: ' + v);
                         }
                     });
@@ -399,7 +399,7 @@ function normalize(pendingLogs, config) {
                     normal.query[key] = value;
 
                 } else {
-                    pendingLogs.push('Request query expects value to be a string for property ' + key + '. Received: ' + value);
+                    pendingLogs.push('Request query expects value to be a string or true for property ' + key + '. Received: ' + value);
                     normal.query[key] = String(value);
                 }
             });
