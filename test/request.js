@@ -29,6 +29,13 @@ describe('request', () => {
         server = new SansServer();
     });
 
+    function testRequest(request) {
+        const err = captureErrors();
+        return server.request(request)
+            .on('error', err.catch)
+            .then(() => err.report());
+    }
+
     it('SansServer#request returns Request instance', () => {
         const server = SansServer();
         const req = server.request();
@@ -38,27 +45,21 @@ describe('request', () => {
     describe('body', () => {
 
         it('accepts string', () => {
-            const err = captureErrors();
             server.use((req, res, next) => {
                 expect(req.body).to.equal('abc');
                 next();
             });
-            return server.request({ body: 'abc' })
-                .on('error', err.catch)
-                .then(() => err.report());
+            return testRequest({ body: 'abc' });
         });
 
         it('copies body object', () => {
-            const err = captureErrors();
             const o = {};
             server.use((req, res, next) => {
                 expect(req.body).to.not.equal(o);
                 expect(req.body).to.deep.equal(o);
                 next();
             });
-            return server.request({ body: o })
-                .on('error', err.catch)
-                .then(() => err.report());
+            return testRequest({ body: o });
         });
 
     });
@@ -66,25 +67,19 @@ describe('request', () => {
     describe('headers', () => {
 
         it('null header ignored', () => {
-            const err = captureErrors();
             server.use((req, res, next) => {
                 expect(req.headers).to.deep.equal({});
                 next();
             });
-            return server.request({ headers: null })
-                .on('error', err.catch)
-                .then(() => err.report());
+            return testRequest({ headers: null });
         });
 
         it('non string header value converted to string', () => {
-            const err = captureErrors();
             server.use((req, res, next) => {
                 expect(req.headers).to.deep.equal({ a: '1' });
                 next();
             });
-            return server.request({ headers: { a: 1 } })
-                .on('error', err.catch)
-                .then(() => err.report());
+            return testRequest({ headers: { a: 1 } });
         });
 
     });
@@ -92,64 +87,57 @@ describe('request', () => {
     describe('query', () => {
 
         it('no query', () => {
-            const err = captureErrors();
             server.use((req, res, next) => {
                 expect(req.query).to.deep.equal({});
                 expect(req.url).to.equal('');
                 res.send();
             });
-            return server.request('')
-                .on('error', err.catch)
-                .then(() => err.report());
+            return testRequest('');
         });
 
         it('null query', () => {
-            const err = captureErrors();
             server.use((req, res, next) => {
                 expect(req.query).to.deep.equal({});
                 res.send();
             });
-            return server.request({ query: null })
-                .on('error', err.catch)
-                .then(() => err.report());
+            return testRequest({ query: null });
         });
 
         it('from path', () => {
-            const err = captureErrors();
             server.use((req, res, next) => {
                 expect(req.query).to.deep.equal({ a: '1', b: '', c: true, d: '4' });
                 expect(req.url).to.equal('?a=1&b=&c&d=4');
                 res.send();
             });
-            return server.request('?a=1&b=&c&d=4')
-                .on('error', err.catch)
-                .then(() => err.report());
+            return testRequest('?a=1&b=&c&d=4');
         });
 
         it('from query string', () => {
-            const err = captureErrors();
             server.use((req, res, next) => {
                 expect(req.query).to.deep.equal({ a: ['1', '2', '', true], b: '', c: true, d: '4' });
                 expect(req.url).to.equal('?a=1&a=2&a=&a&b=&c&d=4');
                 res.send();
             });
-            return server.request({ query: 'a=1&a=2&a=&a&b=&c&d=4' })
-                .on('error', err.catch)
-                .then(() => err.report());
+            return testRequest({ query: 'a=1&a=2&a=&a&b=&c&d=4' });
         });
 
         it('from query object', () => {
-            const err = captureErrors();
             server.use((req, res, next) => {
                 expect(req.query).to.deep.equal({ a: ['1', '2', '', true], b: true, c: '', d: '4' });
                 expect(req.url).to.equal('?a=1&a=2&a=&a&b&c=&d=4');
                 res.send();
             });
-            return server.request({ query: { a: [1, '2', '', true], b: true, c: '', d: 4 }})
-                .on('error', err.catch)
-                .then(() => err.report());
+            return testRequest({ query: { a: [1, '2', '', true], b: true, c: '', d: 4 }});
         });
 
+    });
+
+    it('path not string is ignored', () => {
+        server.use((req, res, next) => {
+            expect(req.path).to.equal('');
+            next();
+        });
+        return testRequest({ path: null });
     });
 
     describe('middleware', () => {
@@ -195,6 +183,42 @@ describe('request', () => {
                 next();
             });
             return server.request().then(() => expect(s).to.equal('ba'));
+        });
+
+        it('try to run non-existent hooks produces error with next', () => {
+            let err;
+            server.use((req, res, next) => {
+                req.hook.run('abc', function(error) {
+                    err = error;
+                    next();
+                });
+            });
+            return testRequest()
+                .then(() => {
+                    expect(err).to.be.instanceof(Error);
+                });
+        });
+
+        it('try to run non-existent hooks produces error with promise', () => {
+            let err;
+            server.use((req, res, next) => {
+                req.hook.run('abc').then(next, function(error) {
+                    err = error;
+                    next();
+                });
+            });
+            return testRequest()
+                .then(() => {
+                    expect(err).to.be.instanceof(Error);
+                });
+        });
+
+        it('run empty hooks resolves', () => {
+            const key = server.hook.define('abc');
+            server.use((req, res, next) => {
+                req.hook.run(key, next);
+            });
+            return testRequest();
         });
 
     });
