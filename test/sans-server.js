@@ -21,16 +21,19 @@ const Request           = require('../bin/server/request');
 const SansServer        = require('../bin/server/sans-server');
 
 describe('san-server', () => {
+    let server;
+
+    beforeEach(() => {
+        server = SansServer();
+    });
 
     describe('paradigms', () => {
 
         it('promise paradigm resolves', () => {
-            const server = SansServer();
             return server.request();
         });
 
         it('promise paradigm invalid method', () => {
-            const server = SansServer();
             return server.request({ method: 5 })
                 .then(res => {
                     expect(res.statusCode).to.equal(404);
@@ -47,7 +50,6 @@ describe('san-server', () => {
         });
 
         it('callback paradigm invalid method', (done) => {
-            const server = SansServer();
             server.request({ method: 5 }, function(res) {
                 expect(res.statusCode).to.equal(404);
                 done();
@@ -59,7 +61,6 @@ describe('san-server', () => {
     describe('logger', () => {
 
         it('exists', () => {
-            const server = SansServer();
             server.use(function(req, res, next) {
                 expect(this.log).to.be.a('function');
                 next();
@@ -68,7 +69,6 @@ describe('san-server', () => {
         });
 
         it('distinct per middleware', () => {
-            const server = SansServer();
             let first;
             server.use(function(req, res, next) {
                 first = this.log;
@@ -107,24 +107,22 @@ describe('san-server', () => {
     describe('methods', () => {
 
         it('allows GET', () => {
-            const server = SansServer();
             const req = server.request({ method: 'GET'});
             expect(req.method).to.equal('GET');
         });
 
         it('does not allow FOO', () => {
-            const server = SansServer();
             const req = server.request({ method: 'FOO'});
             expect(req.method).to.equal('GET');
         });
 
         it('string defaults to GET', () => {
-            const req = SansServer().request();
+            const req = server.request();
             expect(req.method).to.equal('GET');
         });
 
         it('converted to upper case', () => {
-            const req = SansServer().request({ method: 'put' });
+            const req = server.request({ method: 'put' });
             expect(req.method).to.equal('PUT');
         });
 
@@ -133,7 +131,6 @@ describe('san-server', () => {
     describe('requests', () => {
 
         it('pulls query from path', () => {
-            const server = SansServer();
             server.use(function (req, res, next) {
                 expect(req.path).to.equal('/foo');
                 expect(req.query.abc).to.equal('');
@@ -149,7 +146,6 @@ describe('san-server', () => {
                 headers: { 'content-type': 'application/json' },
                 method: 'POST'
             };
-            const server = SansServer();
             server.use(function(req, res, next) {
                 expect(req.body).to.equal(request.body);
                 next();
@@ -165,8 +161,7 @@ describe('san-server', () => {
                 path: 'foo',
                 query: { q1: 'q1' }
             };
-            const server = SansServer()
-                .use(function (req, res, next) {
+            server.use(function (req, res, next) {
                     expect(req).to.not.equal(request);
                     expect(req.body).to.equal(request.body);
                     expect(req.headers.foo).to.equal(request.headers.foo);
@@ -185,7 +180,6 @@ describe('san-server', () => {
         it('persistent hook', () => {
             let hooked = 0;
             const hook = function(req, res, next) { hooked++; next(); };
-            const server = SansServer();
             server.hook('request', hook);
             return server.request()
                 .then(res => {
@@ -200,7 +194,6 @@ describe('san-server', () => {
         it('one time hook', () => {
             let persist = 0;
             let once = 0;
-            const server = SansServer();
 
             server.hook('request', 0, (req, res, next) => {
                 if (persist === 0) {
@@ -223,17 +216,14 @@ describe('san-server', () => {
 
         it('invalid hook', () => {
             const hook = null;
-            const server = SansServer();
             expect(() => server.hook(hook)).to.throw(Error);
         });
 
         it('hook must be a function', () => {
-            const server = SansServer();
             expect(() => server.hook('abc', 0, null)).to.throw(Error);
         });
 
         it('hook can throw error', () => {
-            const server = SansServer();
             const err = captureError();
             const error = Error('oops');
             server.hook('request', function myHook(req, res, next) {
@@ -248,7 +238,6 @@ describe('san-server', () => {
         });
 
         it('callback hook can provide error', () => {
-            const server = SansServer();
             const err = captureError();
             const error = Error('oops');
             server.hook('request', function myHook(req, res, next) {
@@ -260,6 +249,17 @@ describe('san-server', () => {
                     expect(err.get()).to.equal(error);
                     expect(res.statusCode).to.equal(500);
                 });
+        });
+
+        it('send and still close request hook does not send 404', () => {
+            server.use(function(req, res, next) {
+                res.send('ok');
+                next();         // avoid send and next
+            });
+            return server.request()
+                .then(res => {
+                    expect(res.statusCode).to.equal(200);
+                })
         });
 
     });
@@ -277,7 +277,9 @@ describe('san-server', () => {
                 timeout: .1
             });
             server.use((req, res, next) => {});
-            return server.request().then(res => expect(res.statusCode).to.equal(504));
+            return server.request()
+                .catch(() => { throw Error("This is unreachable") })
+                .then(res => expect(res.statusCode).to.equal(504));
         });
 
     });
