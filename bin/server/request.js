@@ -431,7 +431,12 @@ function runHooksMode(mode, symbol, next) {
     if (!type) {
         const err = Error('Hook type not defined: ' + key);
         err.code = 'ESHOOK';
-        throw err;
+        if (next) {
+            next(err);
+            return;
+        } else {
+            return Promise.reject(err);
+        }
     }
 
     // run the hooks
