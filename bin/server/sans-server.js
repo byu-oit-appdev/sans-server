@@ -28,7 +28,7 @@ module.exports = SansServer;
 /**
  * Create a san-server instance.
  * @param {object} [configuration] Configuration options.
- * @param {object} [configuration.logs] An object configuring log output.
+ * @param {string|object} [configuration.logs] An object configuring log output.
  * @param {boolean} [configuration.logs.duration=false] Set to true to show the time into the request at which the log occurred.
  * @param {boolean} [configuration.logs.grouped=true] Set to true to group all logs for a single request together before outputting to console.
  * @param {boolean} [configuration.logs.silent=false] Set to true to silence all logs.
