@@ -85,11 +85,11 @@ function SansServer(configuration) {
     store.keys.response = this.hook.define('response');
 
     // set request hooks
-    if (config.timeout) this.hook('request', -10000, timeout(config.timeout));
-    this.hook('request', -100000, validMethod);
+    if (config.timeout) this.hook('request', Number.MIN_SAFE_INTEGER, timeout(config.timeout));
+    if (config.useBuiltInHooks) this.hook('request', -100000, validMethod);
 
     // set response hooks
-    this.hook('response', 100000, transform);
+    if (config.useBuiltInHooks) this.hook('response', 100000, transform);
 }
 
 SansServer.prototype = Object.create(EventEmitter.prototype);
@@ -238,6 +238,15 @@ SansServer.prototype.use = function(middleware) {
     return this;
 };
 
+/**
+ * Expose built in hooks.
+ * @type {{validateMethod: validMethod, transformResponse: transform}}
+ */
+SansServer.hooks = {
+    validateMethod: validMethod,
+    transformResponse: transform
+};
+
 
 /**
  * Define a hook runner by specifying a unique type that can only be executed using the symbol returned.
@@ -330,28 +339,39 @@ function transform(req, res, next) {    // TODO: should I take this out or make 
     const body = state.body;
     const type = typeof body;
     const isBuffer = body instanceof Buffer;
+    let contentType;
 
     // error conversion
     if (body instanceof Error) {
         res.log('transform', 'Converting Error to response', { value: body });
         res.status(500).body(httpStatus[500]).set('content-type', 'text/plain');
 
-    // object conversion and content type
-    } else if (type === 'object' && !isBuffer) {
+    // buffer conversion
+    } else if (isBuffer) {
+        res.log('transform', 'Converting Buffer to base64 string', { value: body });
+        res.body(body.toString('base64'));
+        contentType = 'application/octet-stream';
+
+    // object conversion
+    } else if (type === 'object') {
         res.log('transform', 'Converting object to JSON string', { value: body });
         res.body(JSON.stringify(body));
+        contentType = 'application/json';
+
+    // not string conversion
+    } else if (type !== 'string') {
+        res.log('transform', 'Converting ' + type + ' to string', { value: body });
+        res.body(String(body));
+        contentType = 'text/plain';
+
+    } else {
+        contentType = 'text/html';
     }
 
     // set content type if not yet set
-    if (!state.headers.hasOwnProperty('content-type')) {
-        res.log('transform', 'Modify content type');
-        if (isBuffer) {
-            res.set('Content-Type', 'application/octet-stream');
-        } else if (type === 'object') {
-            res.set('Content-Type', 'application/json');
-        } else {
-            res.set('Content-Type', 'text/html');
-        }
+    if (!state.headers.hasOwnProperty('content-type') && contentType) {
+        res.log('transform', 'Set content type');
+        res.set('Content-Type', contentType);
     }
 
     next();

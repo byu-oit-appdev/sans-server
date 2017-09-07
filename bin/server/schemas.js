@@ -102,6 +102,10 @@ exports.server = Typed({
             type: Number,
             default: 30,
             min: 0
+        },
+        useBuiltInHooks: {
+            type: Boolean,
+            default: true
         }
     }
 });
