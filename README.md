@@ -239,7 +239,7 @@ Make a request against the server and get back a [Request](#request-constructor)
 | body | The body of the request. This can be any data type, generally a primitive or a plain object is recommended. If the body contains a form payload then it should follow the [request body](#request-body) documentation. | | `''` |
 | headers | The request headers. This needs to be an object with string keys mapped to string values. For example: `{ headers: { 'content-type', 'plain/text' } }`. | `object` | `{}` |
 | method | The request method. Must be one of `'GET'`, `'HEAD'`, `'POST'`, `'PUT'`, `'DELETE'`, `'OPTIONS'`, `'PATCH'`. Case is not important. | `string` | `'GET'` |
-| query | The query string parameters. Each key must be a string and each value must be either a string or an array of strings. | `object` | `{}` |
+| query | The query string parameters. If a string then it will be parsed. If an object then each key must be a string and each value must be either a string, `true`, or an array of strings. | `object` `string` | `{}` |
 | path | The path for the request. The path should not include the protocol, domain, or port information. The path may contain query parameters and those will be pushed into the request query object automatically. | `string` | `''` |
 
 ###### Request Body
@@ -374,13 +374,15 @@ const SansServer = require('sans-server');
 const server = SansServer();
 
 // these two requests are equivalent:
+server.request('?name=Bob%20Smith&interests=Computers&interests=Sports&happy&extra=');
 server.request({
    query: {
        name: 'Bob Smith',
-       interests: ['Computers', 'Sports']
+       interests: ['Computers', 'Sports'],
+       happy: true,
+       extra: ''
    }
 });
-server.request('?name=Bob%20Smith&interests=Computers&interests=Sports');
 ```
 
 ## SansServer#use
