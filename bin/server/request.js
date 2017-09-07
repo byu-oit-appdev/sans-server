@@ -311,7 +311,8 @@ Object.defineProperty(Request, Symbol.hasInstance, {
 
 function buildQueryString(query) {
     const results = Object.keys(query).reduce(function(ar, key) {
-        ar.push(key + (query[key] !== '' ? '=' + query[key] : ''));
+        const value = query[key];
+        ar.push(key + (typeof value === 'string' ? '=' + value : ''));
         return ar;
     }, []);
     return results.length > 0 ? '?' + results.join('&') : '';
@@ -326,7 +327,9 @@ function extractQueryParamsFromString(store, str) {
             if (Array.isArray(store[key])) {
                 store[key].push(value);
             } else if (store.hasOwnProperty(key)) {
-                store[key] = [ store[key], value ];
+                store[key] = [store[key], value];
+            } else if (value === undefined) {
+                store[key] = true;
             } else {
                 store[key] = value;
             }
@@ -376,21 +379,28 @@ function normalize(pendingLogs, config) {
     if (config.hasOwnProperty('query')) {
         const type = typeof config.query;
         if (type === 'string') {
-            extractQueryParamsFromString(normal.query, config.query);
+            extractQueryParamsFromString(normal.query, config.query.replace(/^\?/, ''));
         } else if (config.query && type === 'object') {
             Object.keys(config.query).forEach(key => {
                 const value = config.query[key];
                 if (typeof key !== 'string') {
                     pendingLogs.push('Request query key expected to be a string. Received: ' + key);
                 } else if (Array.isArray(value)) {
+                    normal.query[key] = [];
                     value.forEach((v, i) => {
-                        if (typeof value !== 'string') {
+                        if (v === true || typeof v === 'string') {
+                            normal.query[key].push(v);
+                        } else {
                             pendingLogs.push('Request query expects value to be a string for property ' + key +
-                                ' at index ' + i + '. Received:' + value);
+                                ' at index ' + i + '. Received: ' + v);
                         }
                     });
-                } else if (typeof value !== 'string') {
-                    pendingLogs.push('Request query expects value to be a string for property ' + key + '. Received:' + value);
+                } else if (value === true || typeof value === 'string') {
+                    normal.query[key] = value;
+
+                } else {
+                    pendingLogs.push('Request query expects value to be a string for property ' + key + '. Received: ' + value);
+                    normal.query[key] = String(value);
                 }
             });
         } else {
