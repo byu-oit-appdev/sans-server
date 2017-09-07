@@ -57,8 +57,7 @@ function SansServer(configuration) {
     const store = {
         config: config,
         keys: {},
-        hooks: hooks,
-        runners: runners
+        hooks: hooks
     };
     this[STORE] = store;
 
