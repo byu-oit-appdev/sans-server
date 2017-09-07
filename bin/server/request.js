@@ -429,7 +429,7 @@ function runHooksMode(mode, symbol, next) {
     // get the hook type from the symbol
     const type = this.server.hook.type(symbol);
     if (!type) {
-        const err = Error('Hook type not defined: ' + key);
+        const err = Error('Hook type not defined: ' + symbol);
         err.code = 'ESHOOK';
         if (next) {
             next(err);
