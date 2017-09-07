@@ -108,6 +108,12 @@ SansServer.prototype.hook = function(type, weight, hook) {
     const hooks = this[STORE].hooks;
     let start = 1;
 
+    if (typeof type !== 'string') {
+        const err = Error('Expected first parameter to be a string. Received: ' + type);
+        err.code = 'ESHOOK';
+        throw err;
+    }
+
     // handle variable input parameters
     if (typeof arguments[1] === 'number') {
         start = 2;
