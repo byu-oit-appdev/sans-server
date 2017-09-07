@@ -37,7 +37,11 @@
  * @property {string} stack The error message stack.
  */
 
-
+/**
+ * Copy a value.
+ * @param {*} value
+ * @returns {*}
+ */
 exports.copy = function(value) {
     const map = new WeakMap();
     return copy(value, map);
