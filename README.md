@@ -518,7 +518,7 @@ Add a rejection handler to the request promise.
 
 Note, the request will never be rejected so any handler you define here will never be called. In the case of an error the request will still be resolved to a response with a `500` status code.
 
-**Signature** **<code>Request#catch ( onRejected ) : undefined</code>**
+**Signature** **<code>Request#catch ( onRejected ) : Response</code>**
 
 **Parameters**
 
@@ -526,7 +526,7 @@ Note, the request will never be rejected so any handler you define here will nev
 | --- | --- | --- | --- |
 | onRejected | The function to call in case of promise rejection. | `function` | |
 
-**Returns** a resolved Promise.
+**Returns** a [Request](#request-constructor) instance.
 
 ## Request#hook
 
