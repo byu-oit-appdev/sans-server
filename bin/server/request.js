@@ -164,7 +164,7 @@ function Request(server, keys, config) {
     Object.defineProperty(this, 'url', {
         configurable: false,
         enumerable: true,
-        get: () => this.path + buildQueryString(this.query || {})
+        get: () => this.path + buildQueryString(this.query)
     });
 
 
