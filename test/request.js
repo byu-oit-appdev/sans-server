@@ -30,7 +30,7 @@ describe('request', () => {
         expect(req).to.be.instanceOf(Request);
     });
 
-    describe('query', () => {
+    describe.only('query', () => {
         let server;
 
         beforeEach(() => {
@@ -52,23 +52,23 @@ describe('request', () => {
         it('from query string', () => {
             const err = captureErrors();
             server.use((req, res, next) => {
-                expect(req.query).to.deep.equal({ a: '1', b: '', c: true, d: '4' });
-                expect(req.url).to.equal('?a=1&b=&c&d=4');
+                expect(req.query).to.deep.equal({ a: ['1', '2'], b: '', c: true, d: '4' });
+                expect(req.url).to.equal('?a=1&a=2&b=&c&d=4');
                 res.send();
             });
-            return server.request({ query: 'a=1&b=&c&d=4' })
+            return server.request({ query: 'a=1&a=2&b=&c&d=4' })
                 .on('error', err.catch)
                 .then(() => err.report());
         });
 
-        it('from query', () => {
+        it('from query object', () => {
             const err = captureErrors();
             server.use((req, res, next) => {
-                expect(req.query).to.deep.equal({ a: '1', b: true, c: '', d: '4' });
-                expect(req.url).to.equal('?a=1&b&c=&d=4');
+                expect(req.query).to.deep.equal({ a: ['1', '2'], b: true, c: '', d: '4' });
+                expect(req.url).to.equal('?a=1&a=2&b&c=&d=4');
                 res.send();
             });
-            return server.request({ query: { a: 1, b: true, c: '', d: '4' }})
+            return server.request({ query: { a: [1, '2'], b: true, c: '', d: '4' }})
                 .on('error', err.catch)
                 .then(() => err.report());
         });

@@ -312,7 +312,11 @@ Object.defineProperty(Request, Symbol.hasInstance, {
 function buildQueryString(query) {
     const results = Object.keys(query).reduce(function(ar, key) {
         const value = query[key];
-        ar.push(key + (typeof value === 'string' ? '=' + value : ''));
+        if (Array.isArray(value)) {
+            value.forEach(value => ar.push(key + (typeof value === 'string' ? '=' + value : '')));
+        } else {
+            ar.push(key + (typeof value === 'string' ? '=' + value : ''));
+        }
         return ar;
     }, []);
     return results.length > 0 ? '?' + results.join('&') : '';
@@ -393,6 +397,7 @@ function normalize(pendingLogs, config) {
                         } else {
                             pendingLogs.push('Request query expects value to be a string or true for property ' + key +
                                 ' at index ' + i + '. Received: ' + v);
+                            normal.query[key].push(String(v));
                         }
                     });
                 } else if (value === true || typeof value === 'string') {
