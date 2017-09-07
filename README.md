@@ -77,6 +77,11 @@ Create a Sans Server instance that follows the specified configuration.
 - [request](#sansserverrequest) - Make a request.
 - [use](#sansserveruse) - Add a middleware to each request.
 
+**Static Methods**
+
+- [hooks.validateMethod](#sansserverhooksvalidatemethod) - A request hook for validating the HTTP method.
+- [hooks.transformResponse](#sansserverhookstransformresponse) - A response hook for transforming the response body to a string and setting an unset `Content-Type`.
+
 **Parameters**
 
 | Parameter | Description | Type | Default |
@@ -88,6 +93,7 @@ Create a Sans Server instance that follows the specified configuration.
 | Option | Description | Type | Default |
 | --- | --- | --- | --- |
 | logs | A string or an object that specifies how the logs should be output. See [Log Options](#log-options) for details. | `Object.<string,boolean>` `string` | See [Log Options](#log-options) |
+| useBuiltInHooks | A boolean specifying whether built in hooks should run for each request. This includes [request method validation](#) and [response transformation](#). If set to false the built in hooks can still be added manually. | `boolean` | `true` |
 | timeout | The number of seconds to wait prior to request timeout. Set this value to zero to disable the timeout. | `number` | `30` |
     
 ###### Log Options
@@ -118,7 +124,8 @@ const server = SansServer({
         timestamp: false,
         verbose: false
     },
-    timeout: 30
+    timeout: 30,
+    useBuiltInHooks: true
 });
 ```
 
@@ -419,6 +426,52 @@ function second(req, res, next) {
     // run some logic here...
     next();
 }
+```
+
+## SansServer.hooks.validateMethod
+
+A static method that is best used early in the request hooks. It validates that the HTTP method is one of (case insensitive) `'GET'`, `'HEAD'`, `'POST'`, `'PUT'`, `'DELETE'`, `'OPTIONS'`, `'PATCH'`.
+
+This method is automatically used as a request hook with weight `-100000` if the [SansServer configuration options](#config-options) has useBuiltInHooks set to `true`. Otherwise you can add the hook manually like this:
+
+**Example**
+
+```js
+const SansServer = require('sans-server');
+
+// create the Sans Server instance without using built in hooks
+const sansServer = SansServer({ useBuildInHooks: false });
+
+// add validate method request hook
+sansServer.hook('request', -100000, SansServer.hooks.validateMethod);
+```
+
+## SansServer.hooks.transformResponse
+
+A static method that is best used late in the response hook.
+
+This method will automatically set the `Content-Type` header if not set and it will transform the body into a string.
+
+This is how the conversions are made. `Content-Type` is only modified if unset, unless otherwise specified below.
+
+| Body Type | Sets Content-Type To | Body Transformation |
+| ---- | ---- | ---- |
+| `Error` | Always `'text/plain'` | `'Internal Server Error'` |
+| `Buffer` | `'application/octet-stream'` | Convert to base64 encoded string. |
+| `Object` | `'application.json'` | Convert using `JSON.stringify` |
+| `string` | `'text/html'` | None |
+| Anything else | `'text/plain'` | Convert using `String()`
+
+**Example**
+
+```js
+const SansServer = require('sans-server');
+
+// create the Sans Server instance without using built in hooks
+const sansServer = SansServer({ useBuildInHooks: false });
+
+// add validate method request hook
+sansServer.hook('request', -100000, SansServer.hooks.transformResponse);
 ```
 
 ## Request `constructor`
