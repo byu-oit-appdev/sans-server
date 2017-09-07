@@ -343,7 +343,7 @@ function normalize(pendingLogs, config) {
 
     // validate and normalize body
     normal.body = '';
-    if (config.hasOwnProperty('body')) util.copy(config.body);
+    if (config.hasOwnProperty('body')) normal.body = util.copy(config.body);
 
     // validate and normalize headers
     normal.headers = {};
@@ -353,14 +353,12 @@ function normalize(pendingLogs, config) {
             pendingLogs.push('Request headers expected object. Received: ' + config.headers);
         } else {
             Object.keys(config.headers).forEach(key => {
-                const value = config.headers[key];
+                let value = config.headers[key];
                 if (typeof value !== 'string') {
                     err = pendingLogs.push('Request header value expected a string for key: ' + key + '. Received: ' + value);
-                } else if (typeof key !== 'string') {
-                    err = pendingLogs.push('Request header key expected to be a string. Received: ' + key, config);
-                } else {
-                    normal.headers[key.toLowerCase()] = value;
+                    value = String(value);
                 }
+                normal.headers[key.toLowerCase()] = value;
             });
         }
     }
@@ -385,9 +383,7 @@ function normalize(pendingLogs, config) {
         } else if (config.query && type === 'object') {
             Object.keys(config.query).forEach(key => {
                 const value = config.query[key];
-                if (typeof key !== 'string') {
-                    pendingLogs.push('Request query key expected to be a string. Received: ' + key);
-                } else if (Array.isArray(value)) {
+                if (Array.isArray(value)) {
                     normal.query[key] = [];
                     value.forEach((v, i) => {
                         if (v === true || typeof v === 'string') {
