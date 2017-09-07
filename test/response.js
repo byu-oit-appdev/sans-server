@@ -15,83 +15,149 @@
  *    limitations under the License.
  **/
 'use strict';
-const expect                = require('chai').expect;
-const Request               = require('../bin/server/request');
+const captureError      = require('./capture-error');
+const expect            = require('chai').expect;
+const SansServer        = require('../bin/server/sans-server');
 
 describe('response', () => {
-    let req;
-    let res;
+    let server;
 
     beforeEach(function() {
-        req = Request(null, {});
-        res = req.res;
+        server = SansServer();
+    });
+
+    it('can redirect', () => {
+        server.use((req, res, next) => {
+            res.redirect('http://foo.com');
+        });
+        return server.request().then(res => {
+            expect(res.headers.location).to.equal('http://foo.com');
+        });
+    });
+
+    it('can use send status', () => {
+        server.use((req, res, next) => {
+            res.sendStatus(404);
+        });
+        return server.request().then(res => {
+            expect(res.body).to.equal('Not Found');
+            expect(res.statusCode).to.equal(404);
+        });
+    });
+
+    it('can set status', () => {
+        server.use((req, res, next) => {
+            res.status(100);
+            res.send();
+        });
+        return server.request().then(res => {
+            expect(res.statusCode).to.equal(100);
+        });
+    });
+
+    it('can send unsent', () => {
+        const server = SansServer();
+        server.use((req, res, next) => {
+            res.status(200);
+            next();
+        });
+        return server.request().then(res => {
+            expect(res.statusCode).to.equal(200);
+        });
     });
 
     describe('cookie', () => {
 
         it('can clear a cookie', () => {
-            res.clearCookie('foo');
-            res.send();
-            return req.then(res => {
-                expect(res.rawHeaders[0]).to.equal('Set-Cookie: foo=; Expires=Thu, 01 Jan 1970 00:00:00 GMT');
+            server.use((req, res, next) => {
+                res.clearCookie('foo');
+                res.send();
+            });
+            return server.request().then(res => {
+                expect(res.rawHeaders.indexOf('Set-Cookie: foo=; Expires=Thu, 01 Jan 1970 00:00:00 GMT')).to.not.equal(-1);
                 expect(res.cookies[0].serialized).to.equal('foo=; Expires=Thu, 01 Jan 1970 00:00:00 GMT');
             });
         });
 
         it('can set a cookie', () => {
-            res.cookie('foo', 'bar');
-            res.send();
-            return req.then(res => {
-                expect(res.rawHeaders[0]).to.equal('Set-Cookie: foo=bar');
+            server.use((req, res, next) => {
+                res.cookie('foo', 'bar');
+                res.send();
+            });
+            return server.request().then(res => {
+                expect(res.rawHeaders.indexOf('Set-Cookie: foo=bar')).to.not.equal(-1);
                 expect(res.cookies[0].serialized).to.equal('foo=bar');
             });
         });
 
         it('can set a cookie with number value', () => {
-            res.cookie('foo', 123);
-            res.send();
-            return req.then(res => {
+            server.use((req, res, next) => {
+                res.cookie('foo', 123);
+                res.send();
+            });
+            return server.request().then(res => {
                 expect(res.cookies[0].serialized).to.equal('foo=123');
             });
         });
 
         it('cannot set cookie name with non-string', () => {
-            expect(() => res.cookie(123, '')).to.throw(Error);
+            let error;
+            server.use((req, res, next) => {
+                res.cookie(123, '');
+            });
+            return server.request()
+                .on('error', err => error = err)
+                .then(res => {
+                    expect(error.code).to.equal('ERESC');
+                });
         });
 
         it('cannot set cookie with object', () => {
-            expect(() => res.cookie('foo', {})).to.throw(Error);
+            let error;
+            server.use((req, res, next) => {
+                res.cookie('foo', {})
+            });
+            return server.request()
+                .on('error', err => error = err)
+                .then(res => {
+                    expect(error.code).to.equal('ERESC');
+                });
         });
 
         it('cookie with same name creates second entry', () => {
-            res.cookie('foo', 'bar');
-            res.cookie('foo', 'baz');
-            res.send();
-            return req.then(res => {
-                expect(res.rawHeaders.join('\n')).to.equal('Set-Cookie: foo=bar\nSet-Cookie: foo=baz');
+            server.use((req, res, next) => {
+                res.cookie('foo', 'bar');
+                res.cookie('foo', 'baz');
+                res.send();
             });
+            return server.request()
+                .then(res => {
+                    const matches = res.rawHeaders.filter(h => h.indexOf('Set-Cookie: foo=') === 0);
+                    expect(matches.length).to.equal(2);
+                });
         });
 
-    });
-
-    it('can redirect', () => {
-        res.redirect('http://foo.com');
-        return req.then(res => {
-            expect(res.headers.location).to.equal('http://foo.com');
-        });
     });
 
     describe('send', () => {
 
         it('can detect if sent', () => {
-            expect(res.sent).to.equal(false);
-            res.send();
-            expect(res.sent).to.equal(true);
+            const err = captureError();
+            server.use((req, res, next) => {
+                expect(res.sent).to.equal(false);
+                res.send();
+                expect(res.sent).to.equal(true);
+            });
+            return server.request()
+                .on('error', err.catch)
+                .then(err.report);
         });
 
         it('can send nothing', () => {
-            res.send();
-            return req.then(res => {
+            server.use((req, res, next) => {
+                res.send();
+            });
+            return server.request().then(res => {
                 expect(res.statusCode).to.equal(200);
                 expect(res.body).to.equal('');
             });
@@ -99,88 +165,140 @@ describe('response', () => {
 
     });
 
-    it('can use send status', () => {
-        res.sendStatus(404);
-        return req.then(res => {
-            expect(res.body).to.equal('Not Found');
-            expect(res.statusCode).to.equal(404);
-        });
-    });
-
     describe('headers', () => {
 
         it('can set header', () => {
-            res.set('foo', 'bar');
-            res.send();
-            return req.then(res => {
-                expect(res.rawHeaders[0]).to.equal('foo: bar');
+            server.use((req, res, next) => {
+                res.set('foo', 'bar');
+                res.send();
+            });
+            return server.request().then(res => {
+                expect(res.rawHeaders.indexOf('foo: bar')).to.not.equal(-1);
             });
         });
 
         it('can overwrite header', () => {
-            res.set('foo', 'bar');
-            res.set('foo', 'baz');
-            res.send();
-            return req.then(res => {
-                expect(res.rawHeaders[0]).to.equal('foo: baz');
+            server.use((req, res, next) => {
+                res.set('foo', 'bar');
+                res.set('foo', 'baz');
+                res.send();
+            });
+            return server.request().then(res => {
+                expect(res.rawHeaders.indexOf('foo: baz')).to.not.equal(-1);
             });
         });
 
         it('can clear header', () => {
-            res.set('foo', 'bar');
-            res.clearHeader('foo');
-            res.send();
-            return req.then(res => {
-                expect(res.rawHeaders.length).to.equal(0);
+            server.use((req, res, next) => {
+                res.set('foo', 'bar');
+                res.clearHeader('foo');
+                res.send();
+            });
+            return server.request().then(res => {
+                expect(res.rawHeaders.indexOf('foo: bar')).to.equal(-1);
             });
         });
 
-        it('does not clear non existing headers', () => {
-            res.clearHeader('abc');
-            res.send();
-            return req.then(res => {
-                expect(Object.keys(res.headers).length).to.equal(0);
-            });
-        });
-
-    });
-
-    it('can set status', () => {
-        res.status(100);
-        res.send();
-        return req.then(res => {
-            expect(res.statusCode).to.equal(100);
-        });
     });
 
     describe('state', () => {
 
         it('can get current state', () => {
-            res.status(100);
-            res.set('foo', 'bar');
-            const state = res.state;
-            expect(state.statusCode).to.equal(100);
-            expect(state.headers.foo).to.equal('bar');
+            const err = captureError();
+            server.use((req, res, next) => {
+                res.status(100);
+                res.set('foo', 'bar');
+                const state = res.state;
+                expect(state.statusCode).to.equal(100);
+                expect(state.headers.foo).to.equal('bar');
+                next();
+            });
+            return server.request()
+                .on('error', err.catch)
+                .then(err.report);
         });
 
         it('body can be an error', () => {
-            const err = Error('Oops');
-            res.body(err);
-            const state = res.state;
-            expect(state.body.message).to.equal(err.message);
+            const err = captureError();
+            server.use((req, res, next) => {
+                const err = Error('Oops');
+                res.body(err);
+                const state = res.state;
+                expect(state.body.message).to.equal(err.message);
+                res.send();
+            });
+            return server.request()
+                .on('error', err.catch)
+                .then(res => {
+                    expect(err.get()).to.be.undefined;
+                    expect(res.statusCode).to.equal(500);
+                    expect(res.body).to.equal('Internal Server Error');
+                });
         });
 
-        it('body can be an object', () => {
-            const o = {};
-            res.body(o);
-            const state = res.state;
-            expect(state.body).to.deep.equal(o);
+        it('body can be a buffer', () => {
+            const err = captureError();
+            server.use((req, res, next) => {
+                const str = 'Hello';
+                const buffer = Buffer.from(str);
+                res.body(buffer);
+                expect(res.state.body.toString('utf8')).to.equal(str);
+                res.send();
+            });
+            return server.request()
+                .on('error', err.catch)
+                .then(res => {
+                    expect(err.get()).to.be.undefined;
+                    expect(res.body).to.equal('SGVsbG8=');
+                });
         });
 
-        it('gets cookies', () => {
-            res.cookie('foo', 'bar');
-            const state = res.state;
-            expect(state.cookies[0].serialized).to.equal('foo=bar');
+        it('body can be a plain object', () => {
+            const err = captureError();
+            const value = { a: 1 };
+            server.use((req, res, next) => {
+                res.body(value);
+                expect(res.state.body).to.equal(value);
+                res.send();
+            });
+            return server.request()
+                .on('error', err.catch)
+                .then(res => {
+                    expect(err.get()).to.be.undefined;
+                    expect(res.body).to.equal(JSON.stringify(value));
+                });
+        });
+
+        it('body can be a non-plain object', () => {
+            function A() {
+                this.value = 1;
+            }
+
+            const err = captureError();
+            const value = new A();
+            server.use((req, res, next) => {
+                res.send(value);
+            });
+            return server.request()
+                .on('error', err.catch)
+                .then(res => {
+                    expect(err.get()).to.be.undefined;
+                    expect(res.body).to.equal(JSON.stringify(value));
+                });
+        });
+
+        it('body can be a primitive non-string', () => {
+            const err = captureError();
+            const value = 123;
+            server.use((req, res, next) => {
+                res.send(value);
+            });
+            return server.request()
+                .on('error', err.catch)
+                .then(res => {
+                    expect(err.get()).to.be.undefined;
+                    expect(res.body).to.equal('123');
+                });
         });
 
     });
@@ -189,65 +307,35 @@ describe('response', () => {
 
         it('calls response hooks after response send', () => {
             let hooked = false;
-            req.hook('response', function(req, res, next) {
+            server.use((req, res, next) => {
+                res.send();
+            });
+            server.hook('response', function(req, res, next) {
                 hooked = true;
                 next();
             });
-            res.send();
-            return req.then(res => {
-                expect(hooked).to.be.true;
-            });
+            return server.request()
+                .then(res => {
+                    expect(hooked).to.be.true;
+                });
         });
 
-        it('cannot perform send during hook', () => {
-            req.hook('response', function(req, res, next) {
+        it('cannot perform send during response hook', () => {
+            let hasError = false;
+            server.use((req, res, next) => {
+                res.send();
+            });
+            server.hook('response', function(req, res, next) {
                 res.send('ok');
             });
-            res.send();
-            return req.catch(err => {
-                expect(err.code).to.equal('ERSENT');
-            });
-        });
-
-        it('can update body during hook', () => {
-            req.hook('response', function(req, res, next) {
-                res.body('ok');
-                next();
-            });
-            res.send('fails');
-            return req.then(res => {
-                expect(res.body).to.equal('ok');
-            });
-        });
-
-        it('hook type must be a string', () => {
-            expect(() => req.hook(null)).to.throw(Error);
-        });
-
-        it('hook must be a function', () => {
-            expect(() => req.hook('abc', 0, null)).to.throw(Error);
-        });
-
-        it('hook can throw error', () => {
-            req.hook('response', function myHook(req, res, next) {
-                throw Error('Oops');
-            });
-            res.send('fail');
-            return req.catch(err => {
-                expect(err.message).to.equal('Oops');
-            });
-        });
-
-        it('callback hook can provide error', () => {
-            req.hook('response', function myHook(req, res, next) {
-                next(Error('Oops'));
-            });
-            res.send('fail');
-            return req.catch(err => {
-                expect(err.message).to.equal('Oops');
-            });
+            return server.request()
+                .on('error', err => hasError = true)
+                .then(res => {
+                    expect(hasError).to.be.true;
+                });
         });
 
     });
 
 });
+

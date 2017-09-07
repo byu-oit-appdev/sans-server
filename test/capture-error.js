@@ -1,6 +1,6 @@
 /**
  *  @license
- *    Copyright 2016 Brigham Young University
+ *    Copyright 2017 Brigham Young University
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -15,12 +15,19 @@
  *    limitations under the License.
  **/
 'use strict';
+module.exports = captureError;
 
-module.exports = function() {
-    const result = {};
-    result.promise = new Promise(function(resolve, reject) {
-        result.resolve = resolve;
-        result.reject = reject;
-    });
-    return result;
-};
+function captureError() {
+    let e;
+    return {
+        catch: function(err) {
+            e = err;
+        },
+        get: function() {
+            return e;
+        },
+        report: function() {
+            if (e) throw e;
+        }
+    }
+}

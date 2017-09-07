@@ -15,6 +15,7 @@
  *    limitations under the License.
  **/
 'use strict';
+const captureError      = require('./capture-error');
 const expect            = require('chai').expect;
 const Request           = require('../bin/server/request');
 const SansServer        = require('../bin/server/sans-server');
@@ -177,91 +178,15 @@ describe('san-server', () => {
             return server.request(request);
         });
 
-        it('can send body as string', () => {
-            const server = SansServer();
-            const req = server.request();
-            req.res.send('body');
-            return req.then(res => {
-                expect(res.statusCode).to.equal(200);
-                expect(res.body).to.equal('body');
-            });
-        });
-
-        it('can send body as object', () => {
-            const server = SansServer();
-            server.use((req, res, next) => {
-                res.send({ foo: 'bar' });
-            });
-            const req = server.request();
-
-            return req.then(res => {
-                expect(res.body).to.deep.equal(JSON.stringify({ foo: 'bar' }));
-                expect(res.headers['content-type']).to.equal('application/json');
-            });
-        });
-
-        it('can send body as Buffer', () => {
-            const server = SansServer();
-            const req = server.request();
-            req.res.send(new Buffer('Hello'));
-            return req.then(res => {
-                expect(res.body.toString('utf8')).to.equal('Hello');
-                expect(res.headers['content-type']).to.equal('application/octet-stream');
-            });
-        });
-
-    });
-
-    describe('response', () => {
-
-        it('send twice emits error', () => {
-            const server = SansServer({ logs: { silent: false } });
-            let hadError = false;
-
-            server.use(function badMiddleware(req, res, next) {
-                //res.send(Error('Oh noes!'))
-                res.send('ok');
-                res.send('fail');
-            });
-
-            return server.request()
-                .on('error', () => hadError = true)
-                .then(res => {
-                    expect(res.statusCode).to.equal(200);
-                    expect(hadError).to.equal(true);
-                });
-        });
-
-        it('can redirect', () => {
-            const server = SansServer();
-            server.use((req, res, next) => {
-                res.redirect('/foo');
-            });
-
-            return server.request().then(res => {
-                expect(res.statusCode).to.equal(302);
-            });
-        });
-
-        it('can send unsent', () => {
-            const server = SansServer();
-            server.use((req, res, next) => {
-                res.status(200);
-                next();
-            });
-            return server.request().then(res => {
-                expect(res.statusCode).to.equal(200);
-            });
-        });
-
     });
 
     describe('hooks', () => {
 
         it('persistent hook', () => {
             let hooked = 0;
-            const hook = function(state) { hooked++; };
-            const server = SansServer({ hooks: [hook] });
+            const hook = function(req, res, next) { hooked++; next(); };
+            const server = SansServer();
+            server.hook('request', hook);
             return server.request()
                 .then(res => {
                     expect(hooked).to.equal(1);
@@ -272,14 +197,27 @@ describe('san-server', () => {
                 });
         });
 
-        it('hook via method', () => {
-            let hooked = 0;
-            const hook = function(state) { hooked++; };
+        it('one time hook', () => {
+            let persist = 0;
+            let once = 0;
             const server = SansServer();
-            server.hook(hook);
+
+            server.hook('request', 0, (req, res, next) => {
+                if (persist === 0) {
+                    req.hook('response', (req, res, next) => {
+                        once++;
+                        next();
+                    });
+                }
+                persist++;
+                res.send();
+            });
+
             return server.request()
-                .then(res => {
-                    expect(hooked).to.equal(1);
+                .then(() => server.request())
+                .then(() => {
+                    expect(persist).to.equal(2);
+                    expect(once).to.equal(1);
                 });
         });
 
@@ -287,7 +225,42 @@ describe('san-server', () => {
             const hook = null;
             const server = SansServer();
             expect(() => server.hook(hook)).to.throw(Error);
-        })
+        });
+
+        it('hook must be a function', () => {
+            const server = SansServer();
+            expect(() => server.hook('abc', 0, null)).to.throw(Error);
+        });
+
+        it('hook can throw error', () => {
+            const server = SansServer();
+            const err = captureError();
+            const error = Error('oops');
+            server.hook('request', function myHook(req, res, next) {
+                throw error;
+            });
+            return server.request()
+                .on('error', err.catch)
+                .then(res => {
+                    expect(err.get()).to.equal(error);
+                    expect(res.statusCode).to.equal(500);
+                });
+        });
+
+        it('callback hook can provide error', () => {
+            const server = SansServer();
+            const err = captureError();
+            const error = Error('oops');
+            server.hook('request', function myHook(req, res, next) {
+                next(error);
+            });
+            return server.request()
+                .on('error', err.catch)
+                .then(res => {
+                    expect(err.get()).to.equal(error);
+                    expect(res.statusCode).to.equal(500);
+                });
+        });
 
     });
 
@@ -301,9 +274,9 @@ describe('san-server', () => {
                     timeStamp: true,
                     verbose: true
                 },
-                middleware: [ function timeout(req, res, next) { } ],
                 timeout: .1
             });
+            server.use((req, res, next) => {});
             return server.request().then(res => expect(res.statusCode).to.equal(504));
         });
 
