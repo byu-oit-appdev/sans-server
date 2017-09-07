@@ -23,6 +23,11 @@ const SansServer    = require('../bin/server/sans-server');
 process.on('unhandledRejection', err => console.error(err.stack));
 
 describe('request', () => {
+    let server;
+
+    beforeEach(() => {
+        server = new SansServer();
+    });
 
     it('SansServer#request returns Request instance', () => {
         const server = SansServer();
@@ -30,12 +35,61 @@ describe('request', () => {
         expect(req).to.be.instanceOf(Request);
     });
 
-    describe('query', () => {
-        let server;
+    describe('body', () => {
 
-        beforeEach(() => {
-            server = new SansServer();
+        it('accepts string', () => {
+            const err = captureErrors();
+            server.use((req, res, next) => {
+                expect(req.body).to.equal('abc');
+                next();
+            });
+            return server.request({ body: 'abc' })
+                .on('error', err.catch)
+                .then(() => err.report());
         });
+
+        it('copies body object', () => {
+            const err = captureErrors();
+            const o = {};
+            server.use((req, res, next) => {
+                expect(req.body).to.not.equal(o);
+                expect(req.body).to.deep.equal(o);
+                next();
+            });
+            return server.request({ body: o })
+                .on('error', err.catch)
+                .then(() => err.report());
+        });
+
+    });
+
+    describe('headers', () => {
+
+        it('null header ignored', () => {
+            const err = captureErrors();
+            server.use((req, res, next) => {
+                expect(req.headers).to.deep.equal({});
+                next();
+            });
+            return server.request({ headers: null })
+                .on('error', err.catch)
+                .then(() => err.report());
+        });
+
+        it('non string header value converted to string', () => {
+            const err = captureErrors();
+            server.use((req, res, next) => {
+                expect(req.headers).to.deep.equal({ a: '1' });
+                next();
+            });
+            return server.request({ headers: { a: 1 } })
+                .on('error', err.catch)
+                .then(() => err.report());
+        });
+
+    });
+
+    describe('query', () => {
 
         it('no query', () => {
             const err = captureErrors();
@@ -45,6 +99,17 @@ describe('request', () => {
                 res.send();
             });
             return server.request('')
+                .on('error', err.catch)
+                .then(() => err.report());
+        });
+
+        it('null query', () => {
+            const err = captureErrors();
+            server.use((req, res, next) => {
+                expect(req.query).to.deep.equal({});
+                res.send();
+            });
+            return server.request({ query: null })
                 .on('error', err.catch)
                 .then(() => err.report());
         });
@@ -80,7 +145,7 @@ describe('request', () => {
                 expect(req.url).to.equal('?a=1&a=2&a=&a&b&c=&d=4');
                 res.send();
             });
-            return server.request({ query: { a: [1, '2', '', true], b: true, c: '', d: '4' }})
+            return server.request({ query: { a: [1, '2', '', true], b: true, c: '', d: 4 }})
                 .on('error', err.catch)
                 .then(() => err.report());
         });
@@ -88,11 +153,6 @@ describe('request', () => {
     });
 
     describe('middleware', () => {
-        let server;
-
-        beforeEach(() => {
-            server = new SansServer();
-        });
 
         it('calls middleware in order', () => {
             let s = '';
@@ -110,11 +170,6 @@ describe('request', () => {
     });
 
     describe('hooks', () => {
-        let server;
-
-        beforeEach(() => {
-            server = new SansServer();
-        });
 
         it('calls request hooks in order', () => {
             let s = '';
