@@ -191,6 +191,15 @@ describe('san-server', () => {
                 });
         });
 
+        it('invalid persistent hook', () => {
+            const hook = null;
+            expect(() => server.hook(hook)).to.throw(Error);
+        });
+
+        it('persistent hook must be a function', () => {
+            expect(() => server.hook('abc', 0, null)).to.throw(Error);
+        });
+
         it('one time hook', () => {
             let persist = 0;
             let once = 0;
@@ -214,13 +223,26 @@ describe('san-server', () => {
                 });
         });
 
-        it('invalid hook', () => {
-            const hook = null;
-            expect(() => server.hook(hook)).to.throw(Error);
+        it('invalid one time hook', () => {
+            const err = captureError();
+            server.use((req, res, next) => {
+                req.hook(null);
+                next();
+            });
+            return server.request()
+                .on('error', err.catch)
+                .then(res => expect(() => err.report()).to.throw(Error));
         });
 
-        it('hook must be a function', () => {
-            expect(() => server.hook('abc', 0, null)).to.throw(Error);
+        it('one time hook must be a function', () => {
+            const err = captureError();
+            server.use((req, res, next) => {
+                req.hook('abc', null);
+                next();
+            });
+            return server.request()
+                .on('error', err.catch)
+                .then(res => expect(() => err.report()).to.throw(Error));
         });
 
         it('hook can throw error', () => {
