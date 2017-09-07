@@ -327,13 +327,11 @@ function extractQueryParamsFromString(store, str) {
         .forEach(pair => {
             const kv = pair.split('=');
             const key = kv[0];
-            const value = kv[1];
+            const value = kv[1] === undefined ? true : kv[1];
             if (Array.isArray(store[key])) {
                 store[key].push(value);
             } else if (store.hasOwnProperty(key)) {
                 store[key] = [store[key], value];
-            } else if (value === undefined) {
-                store[key] = true;
             } else {
                 store[key] = value;
             }

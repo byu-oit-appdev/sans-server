@@ -30,11 +30,23 @@ describe('request', () => {
         expect(req).to.be.instanceOf(Request);
     });
 
-    describe.only('query', () => {
+    describe('query', () => {
         let server;
 
         beforeEach(() => {
             server = new SansServer();
+        });
+
+        it('no query', () => {
+            const err = captureErrors();
+            server.use((req, res, next) => {
+                expect(req.query).to.deep.equal({});
+                expect(req.url).to.equal('');
+                res.send();
+            });
+            return server.request('')
+                .on('error', err.catch)
+                .then(() => err.report());
         });
 
         it('from path', () => {
@@ -52,11 +64,11 @@ describe('request', () => {
         it('from query string', () => {
             const err = captureErrors();
             server.use((req, res, next) => {
-                expect(req.query).to.deep.equal({ a: ['1', '2'], b: '', c: true, d: '4' });
-                expect(req.url).to.equal('?a=1&a=2&b=&c&d=4');
+                expect(req.query).to.deep.equal({ a: ['1', '2', '', true], b: '', c: true, d: '4' });
+                expect(req.url).to.equal('?a=1&a=2&a=&a&b=&c&d=4');
                 res.send();
             });
-            return server.request({ query: 'a=1&a=2&b=&c&d=4' })
+            return server.request({ query: 'a=1&a=2&a=&a&b=&c&d=4' })
                 .on('error', err.catch)
                 .then(() => err.report());
         });
@@ -64,11 +76,11 @@ describe('request', () => {
         it('from query object', () => {
             const err = captureErrors();
             server.use((req, res, next) => {
-                expect(req.query).to.deep.equal({ a: ['1', '2'], b: true, c: '', d: '4' });
-                expect(req.url).to.equal('?a=1&a=2&b&c=&d=4');
+                expect(req.query).to.deep.equal({ a: ['1', '2', '', true], b: true, c: '', d: '4' });
+                expect(req.url).to.equal('?a=1&a=2&a=&a&b&c=&d=4');
                 res.send();
             });
-            return server.request({ query: { a: [1, '2'], b: true, c: '', d: '4' }})
+            return server.request({ query: { a: [1, '2', '', true], b: true, c: '', d: '4' }})
                 .on('error', err.catch)
                 .then(() => err.report());
         });
