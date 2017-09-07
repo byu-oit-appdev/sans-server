@@ -220,7 +220,7 @@ Request.prototype.constructor = Request;
  */
 Request.prototype.catch = function(onRejected) {
     // FYI - the promise cannot be rejected
-    return Promise.resolve();
+    return this;// Promise.resolve();
 };
 
 /**
