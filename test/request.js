@@ -223,4 +223,30 @@ describe('request', () => {
 
     });
 
+    describe('conflicting results', () => {
+
+        it('can ignore error after send', () => {
+            server.use((req, res, next) => {
+                res.send('ok');
+                throw Error('oops');
+            });
+            return server.request()
+                .then(res => {
+                    expect(res.statusCode).to.equal(200);
+                });
+        });
+
+        it('can ignore res-complete after error', () => {
+            server.use((req, res, next) => {
+                req.emit('error', Error('oops'));
+                res.send('ok');
+            });
+            return server.request()
+                .then(res => {
+                    expect(res.statusCode).to.equal(500);
+                });
+        });
+
+    });
+
 });
