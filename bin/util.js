@@ -47,33 +47,6 @@ exports.copy = function(value) {
     return copy(value, map);
 };
 
-/**
- * Get a promise for an event to be fired.
- * @param {EventEmitter} emitter
- * @param {string} event
- * @param {string} [errEvent='error']
- * @returns {Promise}
- */
-exports.eventPromise = function(emitter, event, errEvent) {
-    if (!errEvent) errEvent = 'error';
-
-    const deferred = {};
-    deferred.promise = new Promise(function(resolve, reject) {
-        deferred.resolve = resolve;
-        deferred.reject = reject;
-    });
-
-    emitter.on(event, function(data) {
-        deferred.resolve(data);
-    });
-
-    emitter.on(errEvent, function(err) {
-        deferred.resolve(err);
-    });
-
-    return deferred.promise;
-};
-
 exports.finally = function(promise, callback) {
     promise.then(
         value => callback(null, value),
