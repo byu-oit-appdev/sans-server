@@ -15,16 +15,16 @@
  *    limitations under the License.
  **/
 'use strict';
-const captureError      = require('./capture-error');
 const expect            = require('chai').expect;
 const Request           = require('../bin/server/request');
 const SansServer        = require('../bin/server/sans-server');
+const util              = require('../bin/util');
 
 describe('san-server', () => {
     let server;
 
     beforeEach(() => {
-        server = SansServer();
+        server = SansServer({ rejectable: true });//util.testServer();
     });
 
     describe('paradigms', () => {
@@ -223,54 +223,63 @@ describe('san-server', () => {
                 });
         });
 
-        it('invalid one time hook', () => {
-            const err = captureError();
+        it.only('invalid one time hook', () => {
             server.use((req, res, next) => {
                 req.hook(null);
                 next();
             });
             return server.request()
-                .on('error', err.catch)
-                .then(res => expect(() => err.report()).to.throw(Error));
+                .catch(err => {
+                    console.log('Caught outside', Date.now(), err.message);
+                })
+                .then(() => {
+                    console.log('Here')
+                });
+                //.then(() => { throw Error('Unexpected resolve') }, err => {});
         });
 
+        /*it.only('test', () => {
+            const EventEmitter = require('events');
+            class A extends EventEmitter {}
+
+            const deferred = {};
+            deferred.promise = new Promise((resolve, reject) => {
+                deferred.resolve = resolve;
+                deferred.reject = reject;
+            });
+
+            const a = new A();
+            a.on('error', () => deferred.resolve());
+            a.emit('error', Error());
+
+            return deferred.promise;
+        });*/
+
         it('one time hook must be a function', () => {
-            const err = captureError();
             server.use((req, res, next) => {
                 req.hook('abc', null);
                 next();
             });
             return server.request()
-                .on('error', err.catch)
-                .then(res => expect(() => err.report()).to.throw(Error));
+                .then(() => { throw Error('Should not get here'); }, err => {});
         });
 
         it('hook can throw error', () => {
-            const err = captureError();
             const error = Error('oops');
             server.hook('request', function myHook(req, res, next) {
                 throw error;
             });
             return server.request()
-                .on('error', err.catch)
-                .then(res => {
-                    expect(err.get()).to.equal(error);
-                    expect(res.statusCode).to.equal(500);
-                });
+                .then(() => { throw Error('Should not get here') }, err => {});
         });
 
         it('callback hook can provide error', () => {
-            const err = captureError();
             const error = Error('oops');
             server.hook('request', function myHook(req, res, next) {
                 next(error);
             });
             return server.request()
-                .on('error', err.catch)
-                .then(res => {
-                    expect(err.get()).to.equal(error);
-                    expect(res.statusCode).to.equal(500);
-                });
+                .then(() => { throw Error('Should not get here'); }, err => {});
         });
 
         it('send and still close request hook does not send 404', () => {

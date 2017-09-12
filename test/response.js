@@ -15,15 +15,15 @@
  *    limitations under the License.
  **/
 'use strict';
-const captureError      = require('./capture-error');
 const expect            = require('chai').expect;
 const SansServer        = require('../bin/server/sans-server');
+const util              = require('../bin/util');
 
 describe('response', () => {
     let server;
 
     beforeEach(function() {
-        server = SansServer();
+        server = util.testServer();
     });
 
     it('can redirect', () => {
@@ -64,6 +64,20 @@ describe('response', () => {
         return server.request().then(res => {
             expect(res.statusCode).to.equal(200);
         });
+    });
+
+    describe('statusCode', () => {
+
+        it('can use getter', () => {
+            const server = SansServer();
+            server.use((req, res, next) => {
+                res.status(200);
+                next();
+            });
+            return server.request().then(res => {
+                expect(res.statusCode).to.equal(200);
+            });
+        })
     });
 
     describe('cookie', () => {
@@ -142,15 +156,12 @@ describe('response', () => {
     describe('send', () => {
 
         it('can detect if sent', () => {
-            const err = captureError();
             server.use((req, res, next) => {
                 expect(res.sent).to.equal(false);
                 res.send();
                 expect(res.sent).to.equal(true);
             });
-            return server.request()
-                .on('error', err.catch)
-                .then(err.report);
+            return server.request();
         });
 
         it('can send nothing', () => {
@@ -204,7 +215,6 @@ describe('response', () => {
     describe('state', () => {
 
         it('can get current state', () => {
-            const err = captureError();
             server.use((req, res, next) => {
                 res.status(100);
                 res.set('foo', 'bar');
@@ -213,13 +223,10 @@ describe('response', () => {
                 expect(state.headers.foo).to.equal('bar');
                 next();
             });
-            return server.request()
-                .on('error', err.catch)
-                .then(err.report);
+            return server.request();
         });
 
         it('body can be an error', () => {
-            const err = captureError();
             server.use((req, res, next) => {
                 const err = Error('Oops');
                 res.body(err);
@@ -228,16 +235,13 @@ describe('response', () => {
                 res.send();
             });
             return server.request()
-                .on('error', err.catch)
                 .then(res => {
-                    expect(err.get()).to.be.undefined;
                     expect(res.statusCode).to.equal(500);
                     expect(res.body).to.equal('Internal Server Error');
                 });
         });
 
         it('body can be a buffer', () => {
-            const err = captureError();
             server.use((req, res, next) => {
                 const str = 'Hello';
                 const buffer = Buffer.from(str);
@@ -246,15 +250,12 @@ describe('response', () => {
                 res.send();
             });
             return server.request()
-                .on('error', err.catch)
                 .then(res => {
-                    expect(err.get()).to.be.undefined;
                     expect(res.body).to.equal('SGVsbG8=');
                 });
         });
 
         it('body can be a plain object', () => {
-            const err = captureError();
             const value = { a: 1 };
             server.use((req, res, next) => {
                 res.body(value);
@@ -262,9 +263,7 @@ describe('response', () => {
                 res.send();
             });
             return server.request()
-                .on('error', err.catch)
                 .then(res => {
-                    expect(err.get()).to.be.undefined;
                     expect(res.body).to.equal(JSON.stringify(value));
                 });
         });
@@ -274,29 +273,23 @@ describe('response', () => {
                 this.value = 1;
             }
 
-            const err = captureError();
             const value = new A();
             server.use((req, res, next) => {
                 res.send(value);
             });
             return server.request()
-                .on('error', err.catch)
                 .then(res => {
-                    expect(err.get()).to.be.undefined;
                     expect(res.body).to.equal(JSON.stringify(value));
                 });
         });
 
         it('body can be a primitive non-string', () => {
-            const err = captureError();
             const value = 123;
             server.use((req, res, next) => {
                 res.send(value);
             });
             return server.request()
-                .on('error', err.catch)
                 .then(res => {
-                    expect(err.get()).to.be.undefined;
                     expect(res.body).to.equal('123');
                 });
         });

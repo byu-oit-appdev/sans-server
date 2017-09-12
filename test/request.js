@@ -15,26 +15,21 @@
  *    limitations under the License.
  **/
 'use strict';
-const captureErrors = require('./capture-error');
 const expect        = require('chai').expect;
 const Request       = require('../bin/server/request');
 const SansServer    = require('../bin/server/sans-server');
+const util          = require('../bin/util');
 
-process.on('unhandledRejection', err => console.error(err.stack));
+process.on('unhandledRejection', err => {
+    console.error('Unhandled rejection', Date.now(), err.stack);
+});
 
 describe('request', () => {
     let server;
 
     beforeEach(() => {
-        server = new SansServer();
+        server = util.testServer();
     });
-
-    function testRequest(request) {
-        const err = captureErrors();
-        return server.request(request)
-            .on('error', err.catch)
-            .then(() => err.report());
-    }
 
     it('SansServer#request returns Request instance', () => {
         const server = SansServer();
@@ -45,11 +40,12 @@ describe('request', () => {
     describe('body', () => {
 
         it('accepts string', () => {
+            const server = util.testServer();
             server.use((req, res, next) => {
                 expect(req.body).to.equal('abc');
                 next();
             });
-            return testRequest({ body: 'abc' });
+            return server.request({ body: 'abc' });
         });
 
         it('copies body object', () => {
@@ -59,7 +55,7 @@ describe('request', () => {
                 expect(req.body).to.deep.equal(o);
                 next();
             });
-            return testRequest({ body: o });
+            return server.request({ body: o });
         });
 
     });
@@ -71,7 +67,7 @@ describe('request', () => {
                 expect(req.headers).to.deep.equal({});
                 next();
             });
-            return testRequest({ headers: null });
+            return server.request({ headers: null });
         });
 
         it('non string header value converted to string', () => {
@@ -79,7 +75,7 @@ describe('request', () => {
                 expect(req.headers).to.deep.equal({ a: '1' });
                 next();
             });
-            return testRequest({ headers: { a: 1 } });
+            return server.request({ headers: { a: 1 } });
         });
 
     });
@@ -92,7 +88,7 @@ describe('request', () => {
                 expect(req.url).to.equal('');
                 res.send();
             });
-            return testRequest('');
+            return server.request('');
         });
 
         it('null query', () => {
@@ -100,7 +96,7 @@ describe('request', () => {
                 expect(req.query).to.deep.equal({});
                 res.send();
             });
-            return testRequest({ query: null });
+            return server.request({ query: null });
         });
 
         it('from path', () => {
@@ -109,7 +105,7 @@ describe('request', () => {
                 expect(req.url).to.equal('?a=1&b=&c&d=4');
                 res.send();
             });
-            return testRequest('?a=1&b=&c&d=4');
+            return server.request('?a=1&b=&c&d=4');
         });
 
         it('from query string', () => {
@@ -118,7 +114,7 @@ describe('request', () => {
                 expect(req.url).to.equal('?a=1&a=2&a=&a&b=&c&d=4');
                 res.send();
             });
-            return testRequest({ query: 'a=1&a=2&a=&a&b=&c&d=4' });
+            return server.request({ query: 'a=1&a=2&a=&a&b=&c&d=4' });
         });
 
         it('from query object', () => {
@@ -127,7 +123,7 @@ describe('request', () => {
                 expect(req.url).to.equal('?a=1&a=2&a=&a&b&c=&d=4');
                 res.send();
             });
-            return testRequest({ query: { a: [1, '2', '', true], b: true, c: '', d: 4 }});
+            return server.request({ query: { a: [1, '2', '', true], b: true, c: '', d: 4 }});
         });
 
     });
@@ -137,7 +133,7 @@ describe('request', () => {
             expect(req.path).to.equal('');
             next();
         });
-        return testRequest({ path: null });
+        return server.request({ path: null });
     });
 
     describe('middleware', () => {
@@ -193,7 +189,7 @@ describe('request', () => {
                     next();
                 });
             });
-            return testRequest()
+            return server.request()
                 .then(() => {
                     expect(err).to.be.instanceof(Error);
                 });
@@ -207,7 +203,7 @@ describe('request', () => {
                     next();
                 });
             });
-            return testRequest()
+            return server.request()
                 .then(() => {
                     expect(err).to.be.instanceof(Error);
                 });
@@ -218,7 +214,7 @@ describe('request', () => {
             server.use((req, res, next) => {
                 req.hook.run(key, next);
             });
-            return testRequest();
+            return server.request();
         });
 
     });

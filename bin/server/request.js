@@ -31,6 +31,7 @@ module.exports = Request;
  * Generate a request instance.
  * @param {SansServer} server
  * @param {object} keys
+ * @param {boolean} rejectable
  * @param {string|Object} [config] A string representing the path or a configuration representing all properties
  * to accompany the request.
  * @returns {Request}
@@ -38,49 +39,42 @@ module.exports = Request;
  * @augments {EventEmitter}
  * @augments {Promise}
  */
-function Request(server, keys, config) {
-    if (!(this instanceof Request)) return new Request(server, keys, config);
+function Request(server, keys, rejectable, config) {
+    if (!(this instanceof Request)) return new Request(server, keys, rejectable, config);
     if (!config) config = {};
     if (typeof config !== 'object') config = { path: config };
 
-    // IIFE closure for deferred promise management
-    const promise = (() => {
-        let resolved = false;
+    const promise = new Promise((resolve, reject) => {
+        let fulfilled = false;
 
-        // create a deferred promise that will always resolve to the response state
-        const deferred = {};
-        const result = new Promise(resolve => {
-            deferred.resolve = () => {
-                if (resolved) {
-                    req.log('resolved', 'Request already resolved');
-                } else {
-                    resolved = true;
-                    req.log('resolved', 'Request resolved');
-                    resolve(res.state);
-                }
-            };
-            deferred.reject = err => {
-                req.log('error', err.stack.replace(/\n/g, '\n  '), err);
-                if (resolved) {
-                    req.log('resolved', 'Request already resolved');
-                } else {
-                    res.reset().set('content-type', 'text/plain').status(500).body(httpStatus[500]);
-                    deferred.resolve();
-                }
-            };
+        this.on('res-complete', () => {
+            if (fulfilled) {
+                req.log('fulfilled', 'Request already fulfilled');
+            } else {
+                fulfilled = true;
+                req.log('fulfilled', 'Request fulfilled');
+                resolve(res.state);
+            }
         });
 
-        // listen for response and error events
-        this.once('res-complete', () => deferred.resolve());
-        this.once('error', err => deferred.reject(err));
-
-        return result;
-    })();
+        this.on('error', err => {
+            req.log('error', err.stack.replace(/\n/g, '\n  '), err);
+            if (fulfilled) {
+                req.log('fulfilled', 'Request already fulfilled');
+            } else if (rejectable) {
+                fulfilled = true;
+                req.log('fulfilled', 'Request fulfilled');
+                reject(err);
+            } else {
+                res.reset().set('content-type', 'text/plain').status(500).body(httpStatus[500]);
+                resolve(res.state);
+            }
+        });
+    });
 
     // set private store
     this[STORE] = {
-        hooks: {},
-        promise: promise
+        hooks: {}
     };
 
     // initialize variables
@@ -167,7 +161,13 @@ function Request(server, keys, config) {
         get: () => this.path + buildQueryString(this.query)
     });
 
-
+    /**
+     * Add a rejection handler to the request promise.
+     * @name Request#catch
+     * @param {Function} onRejected
+     * @returns {Promise}
+     */
+    this.catch = onRejected => promise.catch(onRejected);
 
     /**
      * @name Request#hook.run
@@ -184,6 +184,15 @@ function Request(server, keys, config) {
      * @returns {Promise|undefined}
      */
     this.hook.run = runHooksMode.bind(this, 'run');
+
+    /**
+     * Add fulfillment or rejection handlers to the request promise.
+     * @name Request#then
+     * @param {Function} onFulfilled
+     * @param {Function} [onRejected]
+     * @returns {Promise}
+     */
+    this.then = (onFulfilled, onRejected) => promise.then(onFulfilled, onRejected);
 
     // wait one tick for any event listeners to be added
     process.nextTick(() => {
@@ -205,23 +214,15 @@ function Request(server, keys, config) {
                     }
                 }
             })
-            .catch(err => this.emit('error', err));
+            .catch(err => {
+                this.emit('error', err)
+            });
     });
 }
 
 Request.prototype = Object.create(EventEmitter.prototype);
 Request.prototype.name = 'Request';
 Request.prototype.constructor = Request;
-
-/**
- * Add a rejection handler to the request promise.
- * @param {Function} onRejected
- * @returns {Promise}
- */
-Request.prototype.catch = function(onRejected) {
-    // FYI - the promise cannot be rejected
-    return this;// Promise.resolve();
-};
 
 /**
  * Add request specific hooks
@@ -285,17 +286,6 @@ Request.prototype.log = function(type, message, details) {
 };
 
 /**
- * Add fulfillment or rejection handlers to the request promise.
- * @param {Function} onFulfilled
- * @param {Function} [onRejected]
- * @returns {Promise}
- */
-Request.prototype.then = function(onFulfilled, onRejected) {
-    // FYI - the promise cannot be rejected
-    return this[STORE].promise.then(onFulfilled);
-};
-
-/**
  * This constructor has double inheritance.
  * @param {*} instance
  * @returns {boolean}
@@ -304,7 +294,8 @@ Object.defineProperty(Request, Symbol.hasInstance, {
     enumerable: false,
     configurable: true,
     value: function(instance) {
-        return instance instanceof EventEmitter || instance instanceof Promise;
+        return instance instanceof EventEmitter
+            || instance instanceof Promise;
     }
 });
 

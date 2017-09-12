@@ -137,7 +137,6 @@ exports.log = function(category, args) {
     return event;
 };
 
-
 /**
  * Perform a deep copy of a value.
  * @param {*} obj

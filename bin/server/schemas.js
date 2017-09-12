@@ -54,6 +54,10 @@ exports.server = Typed({
                 },
             }
         },
+        rejectable: {
+            type: Boolean,
+            default: false
+        },
         timeout: {
             type: Number,
             default: 30,
