@@ -40,7 +40,6 @@ module.exports = Request;
  * @augments {Promise}
  */
 function Request(server, keys, rejectable, config) {
-    if (!(this instanceof Request)) return new Request(server, keys, rejectable, config);
     if (!config) config = {};
     if (typeof config !== 'object') config = { path: config };
 
@@ -71,15 +70,12 @@ function Request(server, keys, rejectable, config) {
             }
         });
     });
-
-    // set private store
-    this[STORE] = {
-        hooks: {}
-    };
+    promise.id = 'asdf';
 
     // initialize variables
+    const hooks = {};
     const req = this;
-    const res = Response(this, keys.response);
+    const res = new Response(this, keys.response);
     const pendingLogs = [];
 
     // validate and normalize input
@@ -170,20 +166,29 @@ function Request(server, keys, rejectable, config) {
     this.catch = onRejected => promise.catch(onRejected);
 
     /**
-     * @name Request#hook.run
+     * Add request specific hooks
      * @param {string} type
-     * @param {function} next
-     * @returns {Promise|undefined}
+     * @param {number} [weight=0]
+     * @param {...Function} hook
+     * @returns {Request}
      */
-    this.hook.reverse = runHooksMode.bind(this, 'reverse');
+    this.hook = addHook.bind(this, hooks);
 
     /**
      * @name Request#hook.run
-     * @param {string} type
-     * @param {function} next
+     * @param {Symbol} type
+     * @param {function} [next]
      * @returns {Promise|undefined}
      */
-    this.hook.run = runHooksMode.bind(this, 'run');
+    this.hook.reverse = (type, next) => runHooksMode(req, hooks, 'reverse', type, next);
+
+    /**
+     * @name Request#hook.run
+     * @param {Symbol} type
+     * @param {function} [next]
+     * @returns {Promise|undefined}
+     */
+    this.hook.run = (type, next) => runHooksMode(req, hooks, 'run', type, next);
 
     /**
      * Add fulfillment or rejection handlers to the request promise.
@@ -226,15 +231,15 @@ Request.prototype.constructor = Request;
 
 /**
  * Add request specific hooks
+ * @param {object} hooks
  * @param {string} type
  * @param {number} [weight=0]
  * @param {...Function} hook
  * @returns {Request}
  */
-Request.prototype.hook = function(type, weight, hook) {
+function addHook(hooks, type, weight, hook) {
     const length = arguments.length;
-    const hooks = this[STORE].hooks;
-    let start = 1;
+    let start = 2;
 
     if (typeof type !== 'string') {
         const err = Error('Expected first parameter to be a string. Received: ' + type);
@@ -243,8 +248,8 @@ Request.prototype.hook = function(type, weight, hook) {
     }
 
     // handle variable input parameters
-    if (typeof arguments[1] === 'number') {
-        start = 2;
+    if (typeof arguments[2] === 'number') {
+        start = 3;
     } else {
         weight = 0;
     }
@@ -413,12 +418,11 @@ function normalize(pendingLogs, config) {
     return normal;
 }
 
-function runHooksMode(mode, symbol, next) {
-    const hooks = this[STORE].hooks;
+function runHooksMode(req, hooks, mode, symbol, next) {
     let promise;
 
     // get the hook type from the symbol
-    const type = this.server.hook.type(symbol);
+    const type = req.server.hook.type(symbol);
     if (!type) {
         const err = Error('Hook type not defined: ' + symbol);
         err.code = 'ESHOOK';
@@ -436,7 +440,7 @@ function runHooksMode(mode, symbol, next) {
         hooks[type].forEach(item => {
             middleware.add(item.weight, item.hook);
         });
-        promise = middleware[mode](this, this.res);
+        promise = middleware[mode](req, req.res);
     } else {
         promise = Promise.resolve();
     }

@@ -31,7 +31,6 @@ const STORE = Symbol('store');
  * @constructor
  */
 function Response(request, key) {
-    if (!(this instanceof Response)) return new Response(request, key);
 
     // define private store
     const store = {
