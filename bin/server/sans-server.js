@@ -21,8 +21,6 @@ const prettyPrint           = require('../pretty-print');
 const Request               = require('./request');
 const schema                = require('./schemas').server;
 
-const STORE = Symbol('store');
-
 module.exports = SansServer;
 
 /**
@@ -48,18 +46,21 @@ function SansServer(configuration) {
 
     const config = schema.normalize(configuration);
     const hooks = {};
+    const keys = {};
     const runners = {
         symbols: {},
         types: {}
     };
+    const server = this;
 
-    // define the store
-    const store = {
-        config: config,
-        keys: {},
-        hooks: hooks
-    };
-    this[STORE] = store;
+    /**
+     * Define a hook that is applied to all requests.
+     * @param {string} type
+     * @param {number} [weight=0]
+     * @param {...function} hook
+     * @returns {SansServer}
+     */
+    this.hook = addHook.bind(server, hooks);
 
     /**
      * Define a hook runner and get back a Symbol that is used to execute the hooks.
@@ -68,7 +69,7 @@ function SansServer(configuration) {
      * @param {string} type
      * @returns {Symbol}
      */
-    this.hook.define = defineHookRunner.bind(this, runners);
+    this.hook.define = type => defineHookRunner(runners, type);
 
     /**
      * Get the hook type for a specific symbol.
@@ -77,11 +78,30 @@ function SansServer(configuration) {
      * @param {Symbol} key The symbol to use to get they type.
      * @returns {string}
      */
-    this.hook.type = getHookType.bind(this, runners);
+    this.hook.type = key => runners.symbols[key];
+
+    /**
+     * Have the server execute a request.
+     * @param {object|string} [req={}] An object that has request details or a string that is a GET endpoint.
+     * @param {function} [callback] The function to call once the request has been processed.
+     * @returns {Request}
+     * @listens Request#log
+     */
+    this.request = (req, callback) => request(server, config, hooks, keys, req, callback);
+
+    /**
+     * Specify a middleware to use.
+     * @param {...Function} middleware
+     * @throws {Error}
+     * @returns {SansServer}
+     */
+    this.use = this.hook.bind(this, 'request', 0);
+
+
 
     // define the request and response hooks
-    store.keys.request = this.hook.define('request');
-    store.keys.response = this.hook.define('response');
+    keys.request = this.hook.define('request');
+    keys.response = this.hook.define('response');
 
     // set request hooks
     if (config.timeout) this.hook('request', Number.MIN_SAFE_INTEGER, timeout(config.timeout));
@@ -96,15 +116,25 @@ Request.prototype.name = 'SansServer';
 Request.prototype.constructor = SansServer;
 
 /**
+ * Expose built in hooks.
+ * @type {{validateMethod: validMethod, transformResponse: transform}}
+ */
+SansServer.hooks = {
+    validateMethod: validMethod,
+    transformResponse: transform
+};
+
+
+/**
  * Define a hook that is applied to all requests.
+ * @param {object} hooks
  * @param {string} type
  * @param {number} [weight=0]
  * @param {...function} hook
  * @returns {SansServer}
  */
-SansServer.prototype.hook = function(type, weight, hook) {
+function addHook(hooks, type, weight, hook) {
     const length = arguments.length;
-    const hooks = this[STORE].hooks;
     let start = 1;
 
     if (typeof type !== 'string') {
@@ -114,8 +144,8 @@ SansServer.prototype.hook = function(type, weight, hook) {
     }
 
     // handle variable input parameters
-    if (typeof arguments[1] === 'number') {
-        start = 2;
+    if (typeof arguments[2] === 'number') {
+        start = 3;
     } else {
         weight = 0;
     }
@@ -133,39 +163,85 @@ SansServer.prototype.hook = function(type, weight, hook) {
     }
 
     return this;
-};
+}
 
 /**
- * Have the server execute a request.
- * @param {object|string} [request={}] An object that has request details or a string that is a GET endpoint.
- * @param {function} [callback] The function to call once the request has been processed.
- * @returns {Request}
- * @listens Request#log
+ * Define a hook runner by specifying a unique type that can only be executed using the symbol returned.
+ * @param {{types: object, symbols: object}} runners
+ * @param {string} type
+ * @returns {Symbol}
  */
-SansServer.prototype.request = function(request, callback) {
+function defineHookRunner(runners, type) {
+    if (runners.hasOwnProperty(type)) {
+        const err = Error('There is already a hook runner defined for this type: ' + type);
+        err.code = 'ESHOOK';
+        throw err;
+    }
+
+    const s = Symbol(type);
+    runners.types[type] = s;
+    runners.symbols[s] = type;
+
+    return s;
+}
+
+/**
+ * Produce a consistent message from event data.
+ * @private
+ * @param {object} lengths
+ * @param {object} config SansServer logs configuration.
+ * @param {object} data
+ * @returns {string}
+ */
+function eventMessage(lengths, config, data) {
+    const totalLength = lengths.action + lengths.category;
+    const maxLength = 36;
+    if (totalLength > maxLength) {
+        const percent = lengths.action / totalLength;
+        const larger = percent >= .5;
+        lengths.action = Math[larger ? 'ceil': 'floor'](lengths.action / maxLength);
+        lengths.category = Math[larger ? 'floor': 'ceil'](lengths.category / maxLength);
+    }
+
+    return prettyPrint.fixedLength(data.category.toLowerCase(), lengths.category) + '  ' +
+        prettyPrint.fixedLength(data.action, lengths.action) + '  ' +
+        (config.grouped ? '' : data.requestId + '  ') +
+        (config.timestamp ? new Date(data.now).toISOString() + '  ' : '') +
+        (config.timeDiff ? '+' + prettyPrint.seconds(data.diff) + '  ' : '') +
+        (config.duration ? '@' + prettyPrint.seconds(data.duration) + '  ' : '') +
+        data.message +
+        (config.verbose && data.event && typeof data.event === 'object'
+            ? '\n\t' + JSON.stringify(data.event, null, '  ').replace(/^/gm, '\t')
+            : '');
+}
+
+/**
+ * Get a request started.
+ * @param {SansServer} server
+ * @param {object} config
+ * @param {object} hooks
+ * @param {object} keys
+ * @param {object} request
+ * @param {function} [callback]
+ */
+function request(server, config, hooks, keys, request, callback) {
     const args = arguments;
-    const server = this;
     const start = Date.now();
-    const store = this[STORE];
 
     // handle argument variations and get Request instance
     const req = (function() {
         const length = args.length;
         if (length === 0) {
-            return Request(server, store.keys);
+            return Request(server, keys, config.rejectable);
 
         } else if (length === 1 && typeof args[0] === 'function') {
             callback = args[0];
-            return Request(server, store.keys);
+            return Request(server, keys, config.rejectable);
 
         } else {
-            return Request(server, store.keys, request);
+            return Request(server, keys, config.rejectable, request);
         }
     })();
-
-    // initialize variables
-    const config = store.config;
-    const hooks = store.hooks;
 
     // copy hooks into request
     Object.keys(hooks).forEach(type => {
@@ -228,89 +304,6 @@ SansServer.prototype.request = function(request, callback) {
     if (typeof callback === 'function') req.then(callback);
 
     return req;
-};
-
-/**
- * Specify a middleware to use.
- * @param {...Function} middleware
- * @throws {Error}
- * @returns {SansServer}
- */
-SansServer.prototype.use = function(middleware) {
-    const args = Array.from(arguments);
-    args.unshift('request', 0);
-    this.hook.apply(this, args);
-    return this;
-};
-
-/**
- * Expose built in hooks.
- * @type {{validateMethod: validMethod, transformResponse: transform}}
- */
-SansServer.hooks = {
-    validateMethod: validMethod,
-    transformResponse: transform
-};
-
-
-/**
- * Define a hook runner by specifying a unique type that can only be executed using the symbol returned.
- * @param {{types: object, symbols: object}} runners
- * @param {string} type
- * @returns {Symbol}
- */
-function defineHookRunner(runners, type) {
-    if (runners.hasOwnProperty(type)) {
-        const err = Error('There is already a hook runner defined for this type: ' + type);
-        err.code = 'ESHOOK';
-        throw err;
-    }
-
-    const s = Symbol(type);
-    runners.types[type] = s;
-    runners.symbols[s] = type;
-
-    return s;
-}
-
-/**
- * Produce a consistent message from event data.
- * @private
- * @param {object} lengths
- * @param {object} config SansServer logs configuration.
- * @param {object} data
- * @returns {string}
- */
-function eventMessage(lengths, config, data) {
-    const totalLength = lengths.action + lengths.category;
-    const maxLength = 36;
-    if (totalLength > maxLength) {
-        const percent = lengths.action / totalLength;
-        const larger = percent >= .5;
-        lengths.action = Math[larger ? 'ceil': 'floor'](lengths.action / maxLength);
-        lengths.category = Math[larger ? 'floor': 'ceil'](lengths.category / maxLength);
-    }
-
-    return prettyPrint.fixedLength(data.category.toLowerCase(), lengths.category) + '  ' +
-        prettyPrint.fixedLength(data.action, lengths.action) + '  ' +
-        (config.grouped ? '' : data.requestId + '  ') +
-        (config.timestamp ? new Date(data.now).toISOString() + '  ' : '') +
-        (config.timeDiff ? '+' + prettyPrint.seconds(data.diff) + '  ' : '') +
-        (config.duration ? '@' + prettyPrint.seconds(data.duration) + '  ' : '') +
-        data.message +
-        (config.verbose && data.event && typeof data.event === 'object'
-            ? '\n\t' + JSON.stringify(data.event, null, '  ').replace(/^/gm, '\t')
-            : '');
-}
-
-/**
- * Get the hook type for a specific symbol.
- * @param {{types: object, symbols: object}} runners
- * @param {Symbol} key The symbol to use to get they type.
- * @returns {string}
- */
-function getHookType(runners, key) {
-    return runners.symbols[key];
 }
 
 /**
