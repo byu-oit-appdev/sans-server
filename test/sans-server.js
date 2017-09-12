@@ -24,7 +24,7 @@ describe('san-server', () => {
     let server;
 
     beforeEach(() => {
-        server = SansServer({ rejectable: true });//util.testServer();
+        server = SansServer({ rejectable: true });
     });
 
     describe('paradigms', () => {
