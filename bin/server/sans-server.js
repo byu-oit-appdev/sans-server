@@ -232,14 +232,14 @@ function request(server, config, hooks, keys, request, callback) {
     const req = (function() {
         const length = args.length;
         if (length === 0) {
-            return Request(server, keys, config.rejectable);
+            return new Request(server, keys, config.rejectable);
 
         } else if (length === 1 && typeof args[0] === 'function') {
             callback = args[0];
-            return Request(server, keys, config.rejectable);
+            return new Request(server, keys, config.rejectable);
 
         } else {
-            return Request(server, keys, config.rejectable, request);
+            return new Request(server, keys, config.rejectable, request);
         }
     })();
 
