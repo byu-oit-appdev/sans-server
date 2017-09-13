@@ -135,7 +135,7 @@ SansServer.hooks = {
  */
 function addHook(hooks, type, weight, hook) {
     const length = arguments.length;
-    let start = 1;
+    let start = 2;
 
     if (typeof type !== 'string') {
         const err = Error('Expected first parameter to be a string. Received: ' + type);
@@ -221,12 +221,17 @@ function eventMessage(lengths, config, data) {
  * @param {object} config
  * @param {object} hooks
  * @param {object} keys
- * @param {object} request
+ * @param {object} [request]
  * @param {function} [callback]
  */
 function request(server, config, hooks, keys, request, callback) {
     const args = arguments;
     const start = Date.now();
+
+    if (typeof request === 'function' && typeof callback !== 'function') {
+        callback = request;
+        request = {};
+    }
 
     // handle argument variations and get Request instance
     const req = (function() {
@@ -277,7 +282,7 @@ function request(server, config, hooks, keys, request, callback) {
 
     // if logging is grouped then output the log now
     if (!config.logs.silent && config.logs.grouped) {
-        req.then(state => {
+        const log = function(state) {
             const duration = queue[queue.length - 1].now - start;
             const longest = { action: 0, category: 0 };
             queue.forEach(item => {
@@ -297,11 +302,12 @@ function request(server, config, hooks, keys, request, callback) {
                     return eventMessage(longest, config.logs, data);
                 }).join('\n    ');
             console.log(log);
-        });
+        };
+        req.then(log, () => log(req.res.state));
     }
 
     // is using a callback paradigm then execute the callback
-    if (typeof callback === 'function') req.then(callback);
+    if (typeof callback === 'function') req.then(state => callback(null, state), err => callback(err, req.res.state));
 
     return req;
 }
