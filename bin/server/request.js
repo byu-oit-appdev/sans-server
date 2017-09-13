@@ -23,8 +23,6 @@ const Response              = require('./response');
 const util                  = require('../util');
 const uuid                  = require('../uuid');
 
-const STORE = Symbol('store');
-
 module.exports = Request;
 
 /**
@@ -70,7 +68,6 @@ function Request(server, keys, rejectable, config) {
             }
         });
     });
-    promise.id = 'asdf';
 
     // initialize variables
     const hooks = {};
@@ -269,7 +266,7 @@ function addHook(hooks, type, weight, hook) {
         this.emit('hook-add-' + type, event);
     }
     return this;
-};
+}
 
 /**
  * Produce a log event.
@@ -414,6 +411,7 @@ function normalize(pendingLogs, config) {
             if (parts[1]) extractQueryParamsFromString(normal.query, parts[1]);
         }
     }
+    if (normal.path[0] !== '/') normal.path = '/' + normal.path;
 
     return normal;
 }
