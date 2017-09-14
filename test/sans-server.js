@@ -55,6 +55,18 @@ describe('san-server', () => {
             });
         });
 
+        it('callback paradigm error', (done) => {
+            const error = Error();
+            server.use((req, res, next) => {
+                throw error;
+            });
+            server.request({ method: 5 }, function(err, res) {
+                expect(err).to.equal(error);
+                expect(res.statusCode).to.equal(500);
+                done();
+            });
+        });
+
     });
 
     describe('logger', () => {
@@ -93,23 +105,32 @@ describe('san-server', () => {
     describe('methods', () => {
 
         it('allows GET', () => {
-            const req = server.request({ method: 'GET'});
-            expect(req.method).to.equal('GET');
+            server.use((req, res, next) => {
+                expect(req.method).to.equal('GET');
+                next();
+            });
+            return server.request({ method: 'GET'});
         });
 
         it('does not allow FOO', () => {
-            const req = server.request({ method: 'FOO'});
-            expect(req.method).to.equal('GET');
+            return server.request({ method: 'FOO'})
+                .then(res => expect(res.statusCode).to.equal(405));
         });
 
         it('string defaults to GET', () => {
-            const req = server.request();
-            expect(req.method).to.equal('GET');
+            server.use((req, res, next) => {
+                expect(req.method).to.equal('GET');
+                next();
+            });
+            return server.request();
         });
 
         it('converted to upper case', () => {
-            const req = server.request({ method: 'put' });
-            expect(req.method).to.equal('PUT');
+            server.use((req, res, next) => {
+                expect(req.method).to.equal('PUT');
+                next();
+            });
+            return server.request({ method: 'put' });
         });
 
     });
@@ -224,23 +245,6 @@ describe('san-server', () => {
                 //.then(() => { throw Error('Unexpected resolve') }, err => {});
         });
 
-        /*it.only('test', () => {
-            const EventEmitter = require('events');
-            class A extends EventEmitter {}
-
-            const deferred = {};
-            deferred.promise = new Promise((resolve, reject) => {
-                deferred.resolve = resolve;
-                deferred.reject = reject;
-            });
-
-            const a = new A();
-            a.on('error', () => deferred.resolve());
-            a.emit('error', Error());
-
-            return deferred.promise;
-        });*/
-
         it('one time hook must be a function', () => {
             server.use((req, res, next) => {
                 req.hook('abc', null);
@@ -279,6 +283,20 @@ describe('san-server', () => {
                 })
         });
 
+        it('can disable built-in hooks', () => {
+            const server = SansServer({ useBuiltInHooks: false });
+            server.use((req, res, next) => {
+                res.send(req.method);
+            });
+            return server.request({ method: 'ABC' })
+                .then(res => expect(res.body).to.equal('ABC'));
+        });
+
+        it('cannot define two hooks with same name', () => {
+            expect(() => server.hook.define('abc')).not.to.throw(Error);
+            expect(() => server.hook.define('abc')).to.throw(/already a hook/);
+        });
+
     });
 
     describe('timeout', () => {
@@ -299,25 +317,82 @@ describe('san-server', () => {
                 .then(res => expect(res.statusCode).to.equal(504));
         });
 
+        it('no timeout', (done) => {
+            let ended = false;
+            const server = SansServer({ timeout: 0 });
+            server.use((req, res, next) => {});
+            server.request()
+                .then(() => ended = true, () => ended = true);
+            setTimeout(() => {
+                if (ended) {
+                    done(Error('Should not have ended.'));
+                } else {
+                    done();
+                }
+            }, 100);
+        });
+
+
     });
 
-    it('req.log', () => {
-        const server = SansServer({
-            logs: {
-                duration: true,
-                timeDiff: false,
-                timeStamp: true
-            },
-            middleware: [ function timeout(req, res, next) {
+    describe('req.log', () => {
+
+        it('a', () => {
+            const server = SansServer({
+                logs: {
+                    duration: true,
+                    timeDiff: false,
+                    timestamp: true,
+                    verbose: true
+                },
+                timeout: .1
+            });
+            server.use(function timeout(req, res, next) {
                 req.log('One');
                 req.log('Two', 'Second');
                 req.log('Three', { details: true });
                 req.log('Four', 'Forth', { details: true });
+                req.emit('log', {
+                    action: 'A long action description that could be truncated',
+                    category: 'A category',
+                    details: {},
+                    message: '',
+                    timestamp: Date.now()
+                });
+                req.log('A longer action name that must be truncated', 'Message');
                 res.send('OK');
-            }],
-            timeout: .1
+            });
+            return server.request().then(res => null);
         });
-        return server.request().then(res => null);
+
+        it('b', () => {
+            const server = SansServer({
+                logs: {
+                    duration: true,
+                    timeDiff: false,
+                    timestamp: true,
+                    verbose: false
+                },
+                timeout: .1
+            });
+            server.use(function timeout(req, res, next) {
+                req.log('One');
+                req.log('Two', 'Second');
+                req.log('Three', { details: true });
+                req.log('Four', 'Forth', { details: true });
+                req.emit('log', {
+                    action: 'An action',
+                    category: 'A long category description that could be truncated',
+                    details: {},
+                    message: ''
+                });
+                req.log('A longer action name that must be truncated', 'Message');
+                res.send('OK');
+            });
+            return server.request().then(res => null);
+        });
     });
+
+
 
 });
