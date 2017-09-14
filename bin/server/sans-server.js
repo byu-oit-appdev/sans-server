@@ -338,7 +338,7 @@ function timeout(seconds) {
  * @param {Response} res
  * @param {function} next
  */
-function transform(req, res, next) {    // TODO: should I take this out or make it optional?
+function transform(req, res, next) {
     const state = res.state;
     const body = state.body;
     const type = typeof body;
