@@ -47,13 +47,6 @@ exports.copy = function(value) {
     return copy(value, map);
 };
 
-exports.finally = function(promise, callback) {
-    promise.then(
-        value => callback(null, value),
-        err => callback(err, null)
-    );
-};
-
 /**
  * Check to see if an object is plain.
  * @param {Object} o
@@ -93,18 +86,10 @@ exports.log = function(category, args) {
     } else if (length === 1 || (args.length === 2 && typeof args[1] === 'object')) {
         event.message = String(args[0]);
         if (args[1]) event.details = args[1];
-    } else if (length === 2) {
-        event.action = String(args[0]);
-        event.message = String(args[1]);
     } else {
         event.action = String(args[0]);
         event.message = String(args[1]);
         if (args[2]) event.details = args[2];
-    }
-
-    // type check
-    if (!exports.isPlainObject(event.details) && !(event.details instanceof Error)) {
-        event.details = {};
     }
 
     return event;
