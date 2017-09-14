@@ -344,11 +344,10 @@ function normalize(pendingLogs, config) {
     // validate and normalize method
     normal.method = 'GET';
     if (config.hasOwnProperty('method')) {
-        const method = typeof config.method !== 'string' ? null : config.method.toUpperCase();
-        if (httpMethods.indexOf(method) === -1) {
-            pendingLogs.push('Request method expected one of (case-insensitive): ' + httpMethods.join(', ') + '. Received: ' + config.method);
+        if (typeof config.method !== 'string') {
+            pendingLogs.push('Request method expected a string. Received: ' + config.method);
         } else {
-            normal.method = method;
+            normal.method = config.method.toUpperCase();
         }
     }
 
