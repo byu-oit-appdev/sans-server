@@ -15,6 +15,7 @@
  *    limitations under the License.
  **/
 'use strict';
+const EventEmitter  = require('events');
 const expect        = require('chai').expect;
 const Request       = require('../bin/server/request');
 const SansServer    = require('../bin/server/sans-server');
@@ -26,9 +27,18 @@ describe('request', () => {
         server = SansServer({ rejectable: true });
     });
 
-    it('SansServer#request returns Request instance', () => {
-        const req = server.request();
-        expect(req).to.be.instanceOf(Request);
+    describe('instance type', () => {
+
+        it('Request', () => {
+            const req = server.request();
+            expect(req).to.be.instanceOf(Request);
+        });
+
+        it('EventEmitter', () => {
+            const req = server.request();
+            expect(req).to.be.instanceOf(EventEmitter);
+        });
+
     });
 
     describe('body', () => {
@@ -238,6 +248,17 @@ describe('request', () => {
             return server.request()
                 .then(res => {
                     expect(res.statusCode).to.equal(500);
+                });
+        });
+
+        it('can receive res-complete twice without error', () => {
+            server.use((req, res, next) => {
+                res.send('ok');
+                req.emit('res-complete');
+            });
+            return server.request()
+                .then(res => {
+                    expect(res.statusCode).to.equal(200);
                 });
         });
 
