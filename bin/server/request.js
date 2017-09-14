@@ -58,13 +58,15 @@ function Request(server, keys, rejectable, config) {
             req.log('error', err.stack.replace(/\n/g, '\n  '), err);
             if (fulfilled) {
                 req.log('fulfilled', 'Request already fulfilled');
-            } else if (rejectable) {
-                fulfilled = true;
-                req.log('fulfilled', 'Request fulfilled');
-                reject(err);
             } else {
+                fulfilled = true;
                 res.reset().set('content-type', 'text/plain').status(500).body(httpStatus[500]);
-                resolve(res.state);
+                req.log('fulfilled', 'Request fulfilled');
+                if (rejectable) {
+                    reject(err);
+                } else {
+                    resolve(res.state);
+                }
             }
         });
     });
