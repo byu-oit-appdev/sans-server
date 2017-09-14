@@ -210,8 +210,8 @@ function eventMessage(lengths, config, data) {
         (config.timeDiff ? '+' + prettyPrint.seconds(data.diff) + '  ' : '') +
         (config.duration ? '@' + prettyPrint.seconds(data.duration) + '  ' : '') +
         data.message +
-        (config.verbose && data.event && typeof data.event === 'object'
-            ? '\n\t' + JSON.stringify(data.event, null, '  ').replace(/^/gm, '\t')
+        (config.verbose && data.details && typeof data.details === 'object'
+            ? '\n\t' + JSON.stringify(data.details, null, '  ').replace(/^/gm, '\t')
             : '');
 }
 
@@ -225,7 +225,6 @@ function eventMessage(lengths, config, data) {
  * @param {function} [callback]
  */
 function request(server, config, hooks, keys, request, callback) {
-    const args = arguments;
     const start = Date.now();
 
     if (typeof request === 'function' && typeof callback !== 'function') {
@@ -234,12 +233,13 @@ function request(server, config, hooks, keys, request, callback) {
     }
 
     // handle argument variations and get Request instance
+    const args = Array.from(arguments).slice(4).filter(v => v !== undefined);
     const req = (function() {
         const length = args.length;
-        if (length === 4) {
+        if (length === 0) {
             return new Request(server, keys, config.rejectable);
 
-        } else if (length === 5 && typeof args[0] === 'function') {
+        } else if (length === 1 && typeof args[0] === 'function') {
             callback = args[0];
             return new Request(server, keys, config.rejectable);
 
