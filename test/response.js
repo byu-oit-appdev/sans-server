@@ -25,33 +25,64 @@ describe('response', () => {
         server = SansServer({ rejectable: true });
     });
 
-    it('can redirect', () => {
+    it('body set log will truncate', () => {
+        let truncated;
         server.use((req, res, next) => {
-            res.redirect('http://foo.com');
+            res.send('This is a long body that will output a truncated version to the logs');
         });
-        return server.request().then(res => {
-            expect(res.headers.location).to.equal('http://foo.com');
-        });
+        return server.request()
+            .on('log', event => {
+                if (event.action === 'set-body') truncated = /\.\.\.$/.test(event.message);
+            })
+            .then(res => {
+                expect(truncated).to.be.true;
+            });
     });
 
-    it('can use send status', () => {
-        server.use((req, res, next) => {
-            res.sendStatus(404);
+    describe('redirect', () => {
+
+        it('sets location header', () => {
+            server.use((req, res, next) => {
+                res.redirect('http://foo.com');
+            });
+            return server.request().then(res => {
+                expect(res.headers.location).to.equal('http://foo.com');
+            });
         });
-        return server.request().then(res => {
-            expect(res.body).to.equal('Not Found');
-            expect(res.statusCode).to.equal(404);
+
+        it('must be a string', () => {
+            server.use((req, res, next) => {
+                res.redirect(123);
+            });
+            return server.request()
+                .then(() => { throw Error() })
+                .catch(err => expect(err.code).to.equal('ERRD'));
         });
+
     });
 
-    it('can set status', () => {
-        server.use((req, res, next) => {
-            res.status(100);
-            res.send();
+    describe('send status', () => {
+
+        it('adds known body message', () => {
+            server.use((req, res, next) => {
+                res.sendStatus(404);
+            });
+            return server.request().then(res => {
+                expect(res.body).to.equal('Not Found');
+                expect(res.statusCode).to.equal(404);
+            });
         });
-        return server.request().then(res => {
-            expect(res.statusCode).to.equal(100);
+
+        it('stringifies code for unknown body message', () => {
+            server.use((req, res, next) => {
+                res.sendStatus(1000);
+            });
+            return server.request().then(res => {
+                expect(res.body).to.equal('1000');
+                expect(res.statusCode).to.equal(1000);
+            });
         });
+
     });
 
     it('can send unsent', () => {
@@ -67,16 +98,44 @@ describe('response', () => {
 
     describe('statusCode', () => {
 
-        it('can use getter', () => {
-            const server = SansServer();
+        it('can set status', () => {
             server.use((req, res, next) => {
-                res.status(200);
-                next();
+                res.status(100);
+                res.send();
             });
             return server.request().then(res => {
-                expect(res.statusCode).to.equal(200);
+                expect(res.statusCode).to.equal(100);
             });
-        })
+        });
+
+        it('must be a number', () => {
+            server.use((req, res, next) => {
+                res.status('abc');
+                next();
+            });
+            return server.request()
+                .then(() => { throw Error() })
+                .catch(err => expect(err.code).to.equal('ERST'));
+        });
+
+        it('getter', () => {
+            server.use((req, res, next) => {
+                res.status(100);
+                expect(res.statusCode).to.equal(100);
+                next();
+            });
+            return server.request();
+        });
+
+        it('setter', () => {
+            server.use((req, res, next) => {
+                res.statusCode = 100;
+                expect(res.statusCode).to.equal(100);
+                next();
+            });
+            return server.request();
+        });
+
     });
 
     describe('cookie', () => {
@@ -118,9 +177,8 @@ describe('response', () => {
                 res.cookie(123, '');
             });
             return server.request()
-                .catch(err => {
-                    expect(err.code).to.equal('ERESC');
-                });
+                .then(() => { throw Error() })
+                .catch(err => expect(err.code).to.equal('ERESC'));
         });
 
         it('cannot set cookie with object', () => {
@@ -128,9 +186,8 @@ describe('response', () => {
                 res.cookie('foo', {})
             });
             return server.request()
-                .catch(err => {
-                    expect(err.code).to.equal('ERESC');
-                });
+                .then(() => { throw Error() })
+                .catch(err => expect(err.code).to.equal('ERESC'));
         });
 
         it('cookie with same name creates second entry', () => {
@@ -144,6 +201,16 @@ describe('response', () => {
                     const matches = res.rawHeaders.filter(h => h.indexOf('Set-Cookie: foo=') === 0);
                     expect(matches.length).to.equal(2);
                 });
+        });
+
+        it('options must be an object', () => {
+            server.use((req, res, next) => {
+                res.cookie('foo', 'baz', 123);
+                res.send();
+            });
+            return server.request()
+                .then(() => { throw Error() })
+                .catch(err => expect(err.code).to.equal('ERESC'));
         });
 
     });
@@ -203,6 +270,34 @@ describe('response', () => {
             return server.request().then(res => {
                 expect(res.rawHeaders.indexOf('foo: bar')).to.equal(-1);
             });
+        });
+
+        it('can clear non-existing header', () => {
+            server.use((req, res, next) => {
+                res.clearHeader('foo');
+                res.send();
+            });
+            return server.request().then(res => {
+                expect(res.rawHeaders.join('').indexOf('foo')).to.equal(-1);
+            });
+        });
+
+        it('key must be a string', () => {
+            server.use((req, res, next) => {
+                res.set(123, 'abc');
+            });
+            return server.request()
+                .then(() => { throw Error() })
+                .catch(err => expect(err.code).to.equal('ERHDR'))
+        });
+
+        it('value must be a string', () => {
+            server.use((req, res, next) => {
+                res.set('abc', 123);
+            });
+            return server.request()
+                .then(() => { throw Error() })
+                .catch(err => expect(err.code).to.equal('ERHDR'))
         });
 
     });
@@ -316,9 +411,8 @@ describe('response', () => {
                 res.send('ok');
             });
             return server.request()
-                .catch(err => {
-                    expect(err.code).to.equal('ERSENT');
-                });
+                .then(() => { throw Error() })
+                .catch(err => expect(err.code).to.equal('ERSENT'));
         });
 
     });
