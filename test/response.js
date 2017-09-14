@@ -17,13 +17,12 @@
 'use strict';
 const expect            = require('chai').expect;
 const SansServer        = require('../bin/server/sans-server');
-const util              = require('../bin/util');
 
 describe('response', () => {
     let server;
 
     beforeEach(function() {
-        server = util.testServer();
+        server = SansServer({ rejectable: true });
     });
 
     it('can redirect', () => {
@@ -115,26 +114,22 @@ describe('response', () => {
         });
 
         it('cannot set cookie name with non-string', () => {
-            let error;
             server.use((req, res, next) => {
                 res.cookie(123, '');
             });
             return server.request()
-                .on('error', err => error = err)
-                .then(res => {
-                    expect(error.code).to.equal('ERESC');
+                .catch(err => {
+                    expect(err.code).to.equal('ERESC');
                 });
         });
 
         it('cannot set cookie with object', () => {
-            let error;
             server.use((req, res, next) => {
                 res.cookie('foo', {})
             });
             return server.request()
-                .on('error', err => error = err)
-                .then(res => {
-                    expect(error.code).to.equal('ERESC');
+                .catch(err => {
+                    expect(err.code).to.equal('ERESC');
                 });
         });
 
@@ -314,7 +309,6 @@ describe('response', () => {
         });
 
         it('cannot perform send during response hook', () => {
-            let hasError = false;
             server.use((req, res, next) => {
                 res.send();
             });
@@ -322,9 +316,8 @@ describe('response', () => {
                 res.send('ok');
             });
             return server.request()
-                .on('error', err => hasError = true)
-                .then(res => {
-                    expect(hasError).to.be.true;
+                .catch(err => {
+                    expect(err.code).to.equal('ERSENT');
                 });
         });
 

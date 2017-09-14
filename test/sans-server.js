@@ -18,7 +18,6 @@
 const expect            = require('chai').expect;
 const Request           = require('../bin/server/request');
 const SansServer        = require('../bin/server/sans-server');
-const util              = require('../bin/util');
 
 describe('san-server', () => {
     let server;
@@ -42,7 +41,7 @@ describe('san-server', () => {
 
         it('callback paradigm resolves', (done) => {
             const server = SansServer({ logs: { silent: false, grouped: false }}); // non-silent and non-grouped for code coverage
-            const req = server.request(function(res) {
+            const req = server.request(function(err, res) {
                 expect(res.statusCode).to.equal(404);
                 done();
             });
@@ -50,7 +49,7 @@ describe('san-server', () => {
         });
 
         it('callback paradigm invalid method', (done) => {
-            server.request({ method: 5 }, function(res) {
+            server.request({ method: 5 }, function(err, res) {
                 expect(res.statusCode).to.equal(404);
                 done();
             });
@@ -62,20 +61,7 @@ describe('san-server', () => {
 
         it('exists', () => {
             server.use(function(req, res, next) {
-                expect(this.log).to.be.a('function');
-                next();
-            });
-            return server.request();
-        });
-
-        it('distinct per middleware', () => {
-            let first;
-            server.use(function(req, res, next) {
-                first = this.log;
-                next();
-            });
-            server.use(function(req, res, next) {
-                expect(this.log).to.not.equal(first);
+                expect(req.log).to.be.a('function');
                 next();
             });
             return server.request();
@@ -133,7 +119,7 @@ describe('san-server', () => {
         it('pulls query from path', () => {
             server.use(function (req, res, next) {
                 expect(req.path).to.equal('/foo');
-                expect(req.query.abc).to.equal('');
+                expect(req.query.abc).to.equal(true);
                 expect(req.query.def).to.equal('bar');
                 next();
             });
@@ -147,7 +133,7 @@ describe('san-server', () => {
                 method: 'POST'
             };
             server.use(function(req, res, next) {
-                expect(req.body).to.equal(request.body);
+                expect(req.body).to.deep.equal(request.body);
                 next();
             });
             return server.request(request);
@@ -223,7 +209,7 @@ describe('san-server', () => {
                 });
         });
 
-        it.only('invalid one time hook', () => {
+        it('invalid one time hook', () => {
             server.use((req, res, next) => {
                 req.hook(null);
                 next();

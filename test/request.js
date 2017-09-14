@@ -18,21 +18,15 @@
 const expect        = require('chai').expect;
 const Request       = require('../bin/server/request');
 const SansServer    = require('../bin/server/sans-server');
-const util          = require('../bin/util');
-
-process.on('unhandledRejection', err => {
-    console.error('Unhandled rejection', Date.now(), err.stack);
-});
 
 describe('request', () => {
     let server;
 
     beforeEach(() => {
-        server = util.testServer();
+        server = SansServer({ rejectable: true });
     });
 
     it('SansServer#request returns Request instance', () => {
-        const server = SansServer();
         const req = server.request();
         expect(req).to.be.instanceOf(Request);
     });
@@ -40,7 +34,6 @@ describe('request', () => {
     describe('body', () => {
 
         it('accepts string', () => {
-            const server = util.testServer();
             server.use((req, res, next) => {
                 expect(req.body).to.equal('abc');
                 next();
@@ -85,7 +78,7 @@ describe('request', () => {
         it('no query', () => {
             server.use((req, res, next) => {
                 expect(req.query).to.deep.equal({});
-                expect(req.url).to.equal('');
+                expect(req.url).to.equal('/');
                 res.send();
             });
             return server.request('');
@@ -102,7 +95,7 @@ describe('request', () => {
         it('from path', () => {
             server.use((req, res, next) => {
                 expect(req.query).to.deep.equal({ a: '1', b: '', c: true, d: '4' });
-                expect(req.url).to.equal('?a=1&b=&c&d=4');
+                expect(req.url).to.equal('/?a=1&b=&c&d=4');
                 res.send();
             });
             return server.request('?a=1&b=&c&d=4');
@@ -111,7 +104,7 @@ describe('request', () => {
         it('from query string', () => {
             server.use((req, res, next) => {
                 expect(req.query).to.deep.equal({ a: ['1', '2', '', true], b: '', c: true, d: '4' });
-                expect(req.url).to.equal('?a=1&a=2&a=&a&b=&c&d=4');
+                expect(req.url).to.equal('/?a=1&a=2&a=&a&b=&c&d=4');
                 res.send();
             });
             return server.request({ query: 'a=1&a=2&a=&a&b=&c&d=4' });
@@ -120,7 +113,7 @@ describe('request', () => {
         it('from query object', () => {
             server.use((req, res, next) => {
                 expect(req.query).to.deep.equal({ a: ['1', '2', '', true], b: true, c: '', d: '4' });
-                expect(req.url).to.equal('?a=1&a=2&a=&a&b&c=&d=4');
+                expect(req.url).to.equal('/?a=1&a=2&a=&a&b&c=&d=4');
                 res.send();
             });
             return server.request({ query: { a: [1, '2', '', true], b: true, c: '', d: 4 }});
@@ -130,7 +123,7 @@ describe('request', () => {
 
     it('path not string is ignored', () => {
         server.use((req, res, next) => {
-            expect(req.path).to.equal('');
+            expect(req.path).to.equal('/');
             next();
         });
         return server.request({ path: null });
@@ -220,6 +213,11 @@ describe('request', () => {
     });
 
     describe('conflicting results', () => {
+        let server;
+
+        beforeEach(() => {
+            server = SansServer({ rejectable: false });
+        });
 
         it('can ignore error after send', () => {
             server.use((req, res, next) => {
