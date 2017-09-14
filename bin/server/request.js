@@ -287,21 +287,6 @@ Request.prototype.log = function(type, message, details) {
     return this;
 };
 
-/**
- * This constructor has double inheritance.
- * @param {*} instance
- * @returns {boolean}
- */
-Object.defineProperty(Request, Symbol.hasInstance, {
-    enumerable: false,
-    configurable: true,
-    value: function(instance) {
-        return instance instanceof EventEmitter
-            || instance instanceof Promise;
-    }
-});
-
-
 function buildQueryString(query) {
     const results = Object.keys(query).reduce(function(ar, key) {
         const value = query[key];
