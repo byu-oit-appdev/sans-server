@@ -36,7 +36,6 @@ module.exports = SansServer;
  * @param {number} [configuration.timeout=30] The number of seconds to wait before timeout for a request.
  * @returns {SansServer}
  * @constructor
- * @augments {EventEmitter}
  */
 function SansServer(configuration) {
     if (!(this instanceof SansServer)) return new SansServer(configuration);
@@ -110,10 +109,6 @@ function SansServer(configuration) {
     // set response hooks
     if (config.useBuiltInHooks) this.hook('response', 100000, transform);
 }
-
-SansServer.prototype = Object.create(EventEmitter.prototype);
-Request.prototype.name = 'SansServer';
-Request.prototype.constructor = SansServer;
 
 /**
  * Expose built in hooks.
