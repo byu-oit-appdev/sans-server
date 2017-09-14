@@ -172,7 +172,7 @@ function addHook(hooks, type, weight, hook) {
  * @returns {Symbol}
  */
 function defineHookRunner(runners, type) {
-    if (runners.hasOwnProperty(type)) {
+    if (runners.types.hasOwnProperty(type)) {
         const err = Error('There is already a hook runner defined for this type: ' + type);
         err.code = 'ESHOOK';
         throw err;
@@ -199,8 +199,8 @@ function eventMessage(lengths, config, data) {
     if (totalLength > maxLength) {
         const percent = lengths.action / totalLength;
         const larger = percent >= .5;
-        lengths.action = Math[larger ? 'ceil': 'floor'](lengths.action / maxLength);
-        lengths.category = Math[larger ? 'floor': 'ceil'](lengths.category / maxLength);
+        lengths.action = Math[larger ? 'ceil': 'floor'](percent * maxLength);
+        lengths.category = maxLength - Math[larger ? 'floor': 'ceil'](percent * maxLength);
     }
 
     return prettyPrint.fixedLength(data.category.toLowerCase(), lengths.category) + '  ' +
@@ -236,10 +236,10 @@ function request(server, config, hooks, keys, request, callback) {
     // handle argument variations and get Request instance
     const req = (function() {
         const length = args.length;
-        if (length === 0) {
+        if (length === 4) {
             return new Request(server, keys, config.rejectable);
 
-        } else if (length === 1 && typeof args[0] === 'function') {
+        } else if (length === 5 && typeof args[0] === 'function') {
             callback = args[0];
             return new Request(server, keys, config.rejectable);
 
