@@ -620,6 +620,14 @@ Unless otherwise noted, each of these events provide the `Response` instance wit
 
 - `request` - Runs when the request is initialized.
 
+<div style='text-align: right'>
+    <em>
+        Jump To:
+        <a href='#table-of-contents'>Table of Contents</a> |
+        <a href='#request-constructor'>Request Constructor</a>
+    </em>
+</div>
+
 ## Request#catch
 
 Add a rejection handler to the request promise.
@@ -635,6 +643,14 @@ Note, the request will never be rejected so any handler you define here will nev
 | onRejected | The function to call in case of promise rejection. | `function` | |
 
 **Returns** a [Request](#request-constructor) instance.
+
+<div style='text-align: right'>
+    <em>
+        Jump To:
+        <a href='#table-of-contents'>Table of Contents</a> |
+        <a href='#request-constructor'>Request Constructor</a>
+    </em>
+</div>
 
 ## Request#hook
 
@@ -672,6 +688,14 @@ req.hook('response', 0, function(req, res, next) {
 });
 ```
 
+<div style='text-align: right'>
+    <em>
+        Jump To:
+        <a href='#table-of-contents'>Table of Contents</a> |
+        <a href='#request-constructor'>Request Constructor</a>
+    </em>
+</div>
+
 ## Request#hook.reverse
 
 Run the specified set of hooks in reverse.
@@ -703,6 +727,14 @@ sansServer.hook('response', 0, function(req, res, next) {
     req.hook.reverse(key, next);
 });
 ```
+
+<div style='text-align: right'>
+    <em>
+        Jump To:
+        <a href='#table-of-contents'>Table of Contents</a> |
+        <a href='#request-constructor'>Request Constructor</a>
+    </em>
+</div>
 
 ## Request#hook.run
 
@@ -736,6 +768,14 @@ sansServer.hook('response', 0, function(req, res, next) {
 });
 ```
 
+<div style='text-align: right'>
+    <em>
+        Jump To:
+        <a href='#table-of-contents'>Table of Contents</a> |
+        <a href='#request-constructor'>Request Constructor</a>
+    </em>
+</div>
+
 ## Request#log
 
 Produce a log event while processing a request.
@@ -765,6 +805,14 @@ server.use(function myMiddleware(req, res, next) {
 });
 ```
 
+<div style='text-align: right'>
+    <em>
+        Jump To:
+        <a href='#table-of-contents'>Table of Contents</a> |
+        <a href='#request-constructor'>Request Constructor</a>
+    </em>
+</div>
+
 ## Request#then
 
 Add fulfillment or rejection handlers to the request promise.
@@ -781,6 +829,14 @@ Note, the request will never be rejected so it is a waste to provide an onReject
 | onRejected | The function to call in case of promise rejection. (Any function you supply to this will never be called.) | `function` | |
 
 **Returns** a Promise.
+
+<div style='text-align: right'>
+    <em>
+        Jump To:
+        <a href='#table-of-contents'>Table of Contents</a> |
+        <a href='#request-constructor'>Request Constructor</a>
+    </em>
+</div>
 
 ## Response `constructor`
 
@@ -829,6 +885,14 @@ This object has the following structure:
 }
 ```
 
+<div style='text-align: right'>
+    <em>
+        Jump To:
+        <a href='#table-of-contents'>Table of Contents</a> |
+        <a href='#response-constructor'>Response Constructor</a>
+    </em>
+</div>
+
 ## Response#body
 
 Set the response body.
@@ -844,6 +908,14 @@ Set the response body.
 **Returns** the Response instance.
 
 **Emits** `res-set-body` `res-state-change`
+
+<div style='text-align: right'>
+    <em>
+        Jump To:
+        <a href='#table-of-contents'>Table of Contents</a> |
+        <a href='#response-constructor'>Response Constructor</a>
+    </em>
+</div>
 
 ## Response#clearCookie
 
@@ -862,6 +934,14 @@ Remove a cookie by setting it as expired.
 
 **Emits** `res-set-cookie` `res-state-change`
 
+<div style='text-align: right'>
+    <em>
+        Jump To:
+        <a href='#table-of-contents'>Table of Contents</a> |
+        <a href='#response-constructor'>Response Constructor</a>
+    </em>
+</div>
+
 ## Response#clearHeader
 
 Remove a response header.
@@ -877,6 +957,14 @@ Remove a response header.
 **Returns** the Response instance.
 
 **Emits** `res-clear-header` `res-state-change`
+
+<div style='text-align: right'>
+    <em>
+        Jump To:
+        <a href='#table-of-contents'>Table of Contents</a> |
+        <a href='#response-constructor'>Response Constructor</a>
+    </em>
+</div>
 
 ## Response#cookie
 
@@ -896,6 +984,14 @@ Set a response cookie.
 
 **Emits** `res-set-cookie` `res-state-change`
 
+<div style='text-align: right'>
+    <em>
+        Jump To:
+        <a href='#table-of-contents'>Table of Contents</a> |
+        <a href='#response-constructor'>Response Constructor</a>
+    </em>
+</div>
+
 ## Response#log
 
 Produce a response log event.
@@ -914,6 +1010,14 @@ Produce a response log event.
 
 **Emits** `log`
 
+<div style='text-align: right'>
+    <em>
+        Jump To:
+        <a href='#table-of-contents'>Table of Contents</a> |
+        <a href='#response-constructor'>Response Constructor</a>
+    </em>
+</div>
+
 ## Response#redirect
 
 Redirect to client to a new location.
@@ -930,6 +1034,14 @@ Redirect to client to a new location.
 
 **Emits** `res-set-status` `res-set-header` `res-send` `res-state-change`
 
+<div style='text-align: right'>
+    <em>
+        Jump To:
+        <a href='#table-of-contents'>Table of Contents</a> |
+        <a href='#response-constructor'>Response Constructor</a>
+    </em>
+</div>
+
 ## Response#reset
 
 Reset the body, headers, cookies, and status code.
@@ -941,6 +1053,14 @@ Reset the body, headers, cookies, and status code.
 **Returns** the Response instance.
 
 **Emits** `response-reset` `res-state-change`
+
+<div style='text-align: right'>
+    <em>
+        Jump To:
+        <a href='#table-of-contents'>Table of Contents</a> |
+        <a href='#response-constructor'>Response Constructor</a>
+    </em>
+</div>
 
 ## Response#send
 
@@ -958,6 +1078,14 @@ Send the response.
 
 **Emits** `res-send` `res-state-change` `res-complete` `error`
 
+<div style='text-align: right'>
+    <em>
+        Jump To:
+        <a href='#table-of-contents'>Table of Contents</a> |
+        <a href='#response-constructor'>Response Constructor</a>
+    </em>
+</div>
+
 ## Response#sendStatus
 
 Send the response with a status code and status message.
@@ -974,9 +1102,25 @@ Send the response with a status code and status message.
 
 **Emits** `res-set-status` `res-set-header` `res-set-body` `res-send` `res-complete` `res-state-change` `error`
 
+<div style='text-align: right'>
+    <em>
+        Jump To:
+        <a href='#table-of-contents'>Table of Contents</a> |
+        <a href='#response-constructor'>Response Constructor</a>
+    </em>
+</div>
+
 ## Response#set
 
 Alias for [Response#setHeader](#responsesetheader).
+
+<div style='text-align: right'>
+    <em>
+        Jump To:
+        <a href='#table-of-contents'>Table of Contents</a> |
+        <a href='#response-constructor'>Response Constructor</a>
+    </em>
+</div>
 
 ## Response#setHeader
 
@@ -995,6 +1139,14 @@ Set a response header.
 
 **Emits** `res-set-header` `res-state-change`
 
+<div style='text-align: right'>
+    <em>
+        Jump To:
+        <a href='#table-of-contents'>Table of Contents</a> |
+        <a href='#response-constructor'>Response Constructor</a>
+    </em>
+</div>
+
 ## Response#status
 
 Set the response status code.
@@ -1010,6 +1162,14 @@ Set the response status code.
 **Returns** the Response instance.
 
 **Emits** `res-set-status` `res-state-change`
+
+<div style='text-align: right'>
+    <em>
+        Jump To:
+        <a href='#table-of-contents'>Table of Contents</a> |
+        <a href='#response-constructor'>Response Constructor</a>
+    </em>
+</div>
 
 # Hooks and Middleware
 
@@ -1093,6 +1253,20 @@ Console Output:
  */
 ```
 
+<div style='text-align: right'>
+    <em>
+        Jump To:
+        <a href='#table-of-contents'>Table of Contents</a>
+    </em>
+</div>
+
 ## Routing
 
 Routing is not built into the core of sans-server, but you can add it with [sans-server-router](https://www.npmjs.com/package/sans-server-router).
+
+<div style='text-align: right'>
+    <em>
+        Jump To:
+        <a href='#table-of-contents'>Table of Contents</a>
+    </em>
+</div>
