@@ -15,7 +15,6 @@ Write code for a server, without the server.
 - Faster to test your server code (no HTTP required).
 - Can be wrapped by any server.
 - Easy to read logging.
-- Patterned after the [Express](http://expressjs.com) API.
 
 ## Example
 
@@ -37,18 +36,18 @@ server.use(function(req, res, next) {
 });
 
 // make a request against the server
-server.request({ path: '/' }, function(response) {
+server.request({ path: '/' }, function(err, response) {
     console.log(response.statusCode);   // 200
     console.log(response.body);         // 'OK'
 });
 
 // make a request against the server
-server.request({ path: '/foo' }, function(response) {
+server.request({ path: '/foo' }, function(err, response) {
     console.log(response.body);         // 'Not Found'
     console.log(response.statusCode);   // 404
 });
 
-// make a request that returns a promise
+// make a request using a promise
 server.request({ path: '/' })
     .then(function(response) {
         console.log(response.statusCode);   // 200
@@ -58,11 +57,11 @@ server.request({ path: '/' })
 
 ## Table of Contents
 
-# API
-
 - [SansServer Constructor](#sansserver-constructor)
 - [Request](#request-constructor)
 - [Response](#response-constructor)
+- [Hooks and Middleware](#hooks-and-middleware)
+- [Routing](#routing)
 
 ## SansServer `constructor`
 
@@ -74,6 +73,7 @@ Create a Sans Server instance that follows the specified configuration.
 
 - [hook](#sansserverhook) - Add a hook to each request.
 - [hook.define](#sansserverhookdefine) - Define a custom hook.
+- [hook.type](#sansserverhooktype) - Get the primitive from a hook symbol.
 - [request](#sansserverrequest) - Make a request.
 - [use](#sansserveruse) - Add a middleware to each request.
 
@@ -93,8 +93,9 @@ Create a Sans Server instance that follows the specified configuration.
 | Option | Description | Type | Default |
 | --- | --- | --- | --- |
 | logs | A string or an object that specifies how the logs should be output. See [Log Options](#log-options) for details. | `Object.<string,boolean>` `string` | See [Log Options](#log-options) |
-| useBuiltInHooks | A boolean specifying whether built in hooks should run for each request. This includes [request method validation](#) and [response transformation](#). If set to false the built in hooks can still be added manually. | `boolean` | `true` |
+| rejectable | A value that specifies if request promises should be rejected or automatically caught. If set to `false` then requests will always return a valid response. | `boolean` | `false` |
 | timeout | The number of seconds to wait prior to request timeout. Set this value to zero to disable the timeout. | `number` | `30` |
+| useBuiltInHooks | A boolean specifying whether built in hooks should run for each request. This includes [request method validation](#sansserverhooksvalidatemethod) and [response transformation](#sansserverhookstransformresponse). If set to false the built in hooks can still be added manually. | `boolean` | `true` |
     
 ###### Log Options
 
@@ -129,11 +130,19 @@ const server = SansServer({
 });
 ```
 
+<div style='text-align: right'>
+    <em>
+        Jump To:
+        <a href='#table-of-contents'>Table of Contents</a> |
+        <a href='#sansserver-constructor'>SansServer Constructor</a>
+    </em>
+</div>
+
 ## SansServer#hook
 
 Add a hook to each request. For an explanation on hooks see [Hooks and Middleware](#hooks-and-middleware).
 
-**Signature** **<code>SansServer#hook (type, [ weight, ] hook [, hook... ]) : undefined</code>**
+**Signature** **<code>SansServer#hook (type, [ weight, ] hook [, hook... ]) : SansServer</code>**
 
 **Parameters**
 
@@ -163,7 +172,7 @@ server.hook('request', function myHook(req, res, next) {
 const SansServer = require('sans-server');
 const server = SansServer();
 
-server.hook('before-send', hook1, hook2);
+server.hook('request', hook1, hook2);
 
 function hook1(req, res, next) {
     // run some logic here...
@@ -188,11 +197,19 @@ server.hook('request', -100, function myHook(req, res, next) {
 });
 ```
 
+<div style='text-align: right'>
+    <em>
+        Jump To:
+        <a href='#table-of-contents'>Table of Contents</a> |
+        <a href='#sansserver-constructor'>SansServer Constructor</a>
+    </em>
+</div>
+
 ## SansServer#hook.define
 
 Define a unique hook type. Attempting to define a second hook with the same name will throw an error.
 
-**Signature** **<code>SansServer#hook.define ( type ) : symbol</code>**
+**Signature** **<code>SansServer#hook.define ( type ) : Symbol</code>**
 
 **Parameters**
 
@@ -217,6 +234,48 @@ server.use(function myHook(req, res, next) {
 });
 ```
 
+<div style='text-align: right'>
+    <em>
+        Jump To:
+        <a href='#table-of-contents'>Table of Contents</a> |
+        <a href='#sansserver-constructor'>SansServer Constructor</a>
+    </em>
+</div>
+
+## SansServer#hook.type
+
+Get the primitive from a hook symbol.
+
+**Signature** **<code>SansServer#hook.type ( symbol ) : string</code>**
+
+**Parameters**
+
+| Parameter | Description | Type | Default |
+| --- | --- | --- | --- |
+| symbol | The symbol to get the hook type for. | `Symbol` | |
+
+**Returns** the string that was used to create the symbol.
+
+**Example**
+
+```js
+const SansServer = require('sans-server');
+const server = SansServer();
+
+// define custom hook
+const key = server.hook.define('my-hook');
+
+const type = server.hook.type(key);     // 'my-hook'
+```
+
+<div style='text-align: right'>
+    <em>
+        Jump To:
+        <a href='#table-of-contents'>Table of Contents</a> |
+        <a href='#sansserver-constructor'>SansServer Constructor</a>
+    </em>
+</div>
+
 ## SansServer#request
 
 Make a request against the server and get back a [Request](#request-constructor) instance.
@@ -230,7 +289,7 @@ Make a request against the server and get back a [Request](#request-constructor)
 | Parameter | Description | Type | Default |
 | --- | --- | --- | --- |
 | request | A request configuration. If a `string` is used then the string is considered to be the path and all other request defaults will be applied. | `string` `object` | See [Request Configuration](#request-configuration) |
-| callback | A function to call when the request has been completed. The callback receives the [response state](#response-state) as its only input parameter. | `function` | |
+| callback | A function to call when the request has been completed. The callback receives any error as its first parameter. The [response state](#response-state) is provided as the second parameter whether there was an error or not. | `function` | |
 
 ###### Request Configuration
 
@@ -315,12 +374,13 @@ Optionally the `headers` property for each form input can be omitted, but the `c
 const SansServer = require('sans-server');
 const server = SansServer();
 
-server.request('/get/some/path', function(state) {
-    console.log(state.body);        // the response body
-    console.log(state.cookies);     // an object with the set cookies
-    console.log(state.headers);     // an object with the set headers
-    console.log(state.rawHeaders);  // an array of all headers and cookies serialized
-    console.log(state.statusCode);  // the response status code
+server.request('/get/some/path', function(err, res) {
+    if (err) console.error(err.stack);
+    console.log(res.body);        // the response body
+    console.log(res.cookies);     // an object with the set cookies
+    console.log(res.headers);     // an object with the set headers
+    console.log(res.rawHeaders);  // an array of all headers and cookies serialized
+    console.log(res.statusCode);  // the response status code
 });
 ```
 
@@ -331,12 +391,15 @@ const SansServer = require('sans-server');
 const server = SansServer();
 
 server.request('/get/some/path')
-    .then(function(state) {
-        console.log(state.body);        // the response body
-        console.log(state.cookies);     // an object with the set cookies
-        console.log(state.headers);     // an object with the set headers
-        console.log(state.rawHeaders);  // an array of all headers and cookies serialized
-        console.log(state.statusCode);  // the response status code
+    .then(function(res) {
+        console.log(res.body);        // the response body
+        console.log(res.cookies);     // an object with the set cookies
+        console.log(res.headers);     // an object with the set headers
+        console.log(res.rawHeaders);  // an array of all headers and cookies serialized
+        console.log(res.statusCode);  // the response status code
+    })
+    .catch(function(err) {
+        console.error(err.stack);
     });
 ```
 
@@ -347,7 +410,7 @@ const SansServer = require('sans-server');
 const server = SansServer();
 
 server.request({ method: 'POST', path: '/some/path', body: {}, headers: { Accept: 'application/json' } })
-    .then(function(state) {
+    .then(function(res) {
         // do something ...
     });
 ```
@@ -362,7 +425,7 @@ const req = server.request('/some/path')
     .on('log', function(event) { /* ... */ })
     .on('error', function(err) { /* ... */ })
     .on('response', function(res) { /* ... */ })
-    .then(function(state) {
+    .then(function(res) {
         // all hooks and middlewares have run their course
     });
 ```
@@ -384,6 +447,14 @@ server.request({
    }
 });
 ```
+
+<div style='text-align: right'>
+    <em>
+        Jump To:
+        <a href='#table-of-contents'>Table of Contents</a> |
+        <a href='#sansserver-constructor'>SansServer Constructor</a>
+    </em>
+</div>
 
 ## SansServer#use
 
@@ -430,6 +501,14 @@ function second(req, res, next) {
 }
 ```
 
+<div style='text-align: right'>
+    <em>
+        Jump To:
+        <a href='#table-of-contents'>Table of Contents</a> |
+        <a href='#sansserver-constructor'>SansServer Constructor</a>
+    </em>
+</div>
+
 ## SansServer.hooks.validateMethod
 
 A static method that is best used early in the request hooks. It validates that the HTTP method is one of (case insensitive) `'GET'`, `'HEAD'`, `'POST'`, `'PUT'`, `'DELETE'`, `'OPTIONS'`, `'PATCH'`.
@@ -447,6 +526,14 @@ const sansServer = SansServer({ useBuildInHooks: false });
 // add validate method request hook
 sansServer.hook('request', -100000, SansServer.hooks.validateMethod);
 ```
+
+<div style='text-align: right'>
+    <em>
+        Jump To:
+        <a href='#table-of-contents'>Table of Contents</a> |
+        <a href='#sansserver-constructor'>SansServer Constructor</a>
+    </em>
+</div>
 
 ## SansServer.hooks.transformResponse
 
@@ -476,6 +563,14 @@ const sansServer = SansServer({ useBuildInHooks: false });
 sansServer.hook('request', -100000, SansServer.hooks.transformResponse);
 ```
 
+<div style='text-align: right'>
+    <em>
+        Jump To:
+        <a href='#table-of-contents'>Table of Contents</a> |
+        <a href='#sansserver-constructor'>SansServer Constructor</a>
+    </em>
+</div>
+
 ## Request `constructor`
 
 This constructor is invoked when calling [SansServer#request](#sansserverrequest) and an instance of this constructor is returned by that function. This constructor cannot be invoked directly.
@@ -486,7 +581,7 @@ Because the request instance extends the Promise you can also use `then` and `ca
 
 **Methods**
 
-- [catch](#requestcatch) - Don't use this. The request will never be rejected.
+- [catch](#requestcatch) - Catch any request processing errors. If the [Sans Server rejectable](#config-options) is not set to `true` then this method is useless.
 - [hook](#requesthook) - Add a hook to the request.
 - [hook.reverse](#requesthookreverse) - Run specified hook functions in reverse.
 - [hook.run](#requesthookrun) - Run specified hook functions in order.
@@ -495,20 +590,31 @@ Because the request instance extends the Promise you can also use `then` and `ca
 
 **Properties**
 
-- [body](#requestbody) - Get or set the request body.
-- [headers](#requestheaders) - Get or set the request headers. 
-- [id](#requestid) - Get the unique request ID. 
-- [method](#requestmethod) - Get or set the request method. 
-- [path](#requestpath) - Get or set the request path. 
-- [query](#requestquery) - Get or set the request query parameters.
-- [res](#requestres) - Get the [Response](#response-constructor) instance tied to this request.
-- [server](#requestserver) - Get a reference to the Sans Server instance that made this request.
-- [url](#url) - Get the request URL, a combination of the path and query string parameters.
+- `body` - Get or set the request body.
+- `headers` - Get or set the request headers. 
+- `id` - Get the unique request ID. 
+- `method` - Get or set the request method. 
+- `path` - Get or set the request path. 
+- `query` - Get or set the request query parameters.
+- `res` - Get the [Response](#response-constructor) instance tied to this request.
+- `server` - Get a reference to the Sans Server instance that made this request.
+- `url` - Get the request URL, a combination of the path and query string parameters.
 
-**Emits**
+**Events**
 
-- [log](#) 
-- [send](#)
+Unless otherwise noted, each of these events provide the `Response` instance with the event.
+
+- `error` - Fires when an error occurs and provides the error as event data.
+- `log` - Fires when a message is logged and provides the following structure as it's event data: `{ action: string, category: string, details: object, message: string, timestamp: number }`.
+- `res-clear-header` - Fired when a header is cleared.
+- `res-complete` - Fires after `res-send` event and after all response hooks have completed.
+- `res-reset` - Fires when the body, status code, headers, and cookies have all been reset to empty.
+- `res-send` - Fires when the [Response#send](#responsesend) function has been called.
+- `res-set-body` - Fired when the body has been modified.
+- `res-set-cookie` - Fired when a cookie is set or cleared.
+- `res-set-header` - Fired when a header is set.
+- `res-set-status` - Fired when the status code changes.
+- `res-state-change` - Fired when any of the response state has been modified.
 
 **Hooks**
 
@@ -636,8 +742,6 @@ Produce a log event while processing a request.
 
 **Signature** **<code>Request#log ([ type, ] message [, details ]) : Request</code>**
 
-**Emits** `log` : [Log Event](#)
-
 **Parameters**
 
 | Parameter | Description | Type | Default |
@@ -709,25 +813,9 @@ This constructor is invoked when calling SansServer#request and an instance of t
 
 - `response` - Runs in reverse when the response is sent. Lower weights will still run first, but two functions of equal weight will run in reverse order from when they were set.
 
-**Events**
-
-Unless otherwise noted, each of these events provide the `Response` instance with the event.
-
-- `error` - Fires when an error occurs and provides the error as event data.
-- `log` - Fires when a message is logged and provides the following structure as it's event data: `{ action: string, category: string, details: object, message: string, timestamp: number }`.
-- `res-clear-header` - Fired when a header is cleared.
-- `res-complete` - Fires after `res-send` event and after all response hooks have completed.
-- `res-reset` - Fires when the body, status code, headers, and cookies have all been reset to empty.
-- `res-send` - Fires when the [Response#send](#responsesend) function has been called.
-- `res-set-body` - Fired when the body has been modified.
-- `res-set-cookie` - Fired when a cookie is set or cleared.
-- `res-set-header` - Fired when a header is set.
-- `res-set-status` - Fired when the status code changes.
-- `res-state-change` - Fired when any of the response state has been modified.
-
 ###### Response State
 
-The response state is an object that represents the response at the point in time it was requested. It can be acquired using the `Response#state` getter.
+The response state is an object that represents the response at the point in time it was requested. It can be acquired using the Response#state` getter.
 
 This object has the following structure:
 
@@ -923,21 +1011,88 @@ Set the response status code.
 
 **Emits** `res-set-status` `res-state-change`
 
-# Explanations
+# Hooks and Middleware
 
-## Hooks and Middleware
+A hook defines the logic that each request passes through to determine its result. Middleware is a type of hook that runs with the incoming request. Technically you could do anything with the middleware hooks, but it may require rewriting or extending existing functions. To ease development Sans Server enables the use of additional hooks and the ability to create new hooks.
 
+There are two types of hooks:
+
+1. Standard - these hooks are called when there are no errors. They receive three parameters: 1) the [Request](#request-constructor), 2) the [Response](#response-constructor), and 3) the *next* function.
+
+    ```js
+    function myHook(req, res, next) {
+        // do some logic
+        next();
+    }
+    ```
+
+2. Error Handling - these hooks are only called when there are errors. They receive four parameters: 1) the Error, 2) the [Request](#request-constructor), 3) the [Response](#response-constructor), and 4) the *next* function.
+
+    ```js
+    function myErrorHook(req, res, next) {
+        // do some logic
+        next();
+    }
+    ```
+    
+When you define a hook the number of parameters in your hook function is used to determine if it is for handling errors or not.
+
+### Next
+
+Hooks commonly run as a chain of functions, one runs, followed by another, and so on. The `next` function is the mechanism used for continuing on to the next hook in line. By calling `next()` within your hook you are signifying that the hook is done processing.
+
+If during processing an error occurs you have two options: 1) throw the error (synchronous only) or 2) pass the error to the `next` function (synchronous or asynchronous).
+
+```js
+function myHook(req, res, next) {
+    // do some logic
+    throw Error('Oh no! An error.');
+}
+```
+
+```js
+function myHook(req, res, next) {
+    // do some logic
+    next(Error('Oh no! An error.'));
+}
+```
+
+### Hook Flow
+
+If you have a hook that produces an error then all non-error handling hooks will be skipped until an error handling hook is found.
+
+```js
+const SansServer = require('sans-server');
+const sansServer = SansServer();
+
+sansServer.hook('request', function(req, res, next) {
+    console.log('1');
+    next(Error('An Error'));
+});
+
+sansServer.hook('request', function(req, res, next) {
+    console.log('2');
+    next();
+});
+
+sansServer.hook('request', function(req, res, next) {
+    console.log('3');
+    next();
+});
+
+sansServer.hook('request', function(req, res, next) {
+    console.log('4');
+    next();
+});
+
+/*
+Console Output:
+1
+3
+4
+ */
+```
 
 ## Routing
 
-Routing is not built into sans-server so you'll want to use some [routing middleware](https://github.com/byu-oit/sans-server/tree/master/docs/middleware.md#middleware-router).
-
-## Documentation
-
-- [Sans-Server Instance](https://github.com/byu-oit/sans-server/tree/master/docs/sans-server.md) - An instance can be generated with a configuration. Once an instance exists it's easy to specify middleware and to make requests.
-
-- [Middleware](https://github.com/byu-oit/sans-server/tree/master/docs/middleware.md) - The server does almost nothing as is. You need middleware to add functionality.
-
-- [Request Object](https://github.com/byu-oit/sans-server/tree/master/docs/request-object.md) - This object is passed into every middleware function and has information about the request made.
-
-- [Response Object](https://github.com/byu-oit/sans-server/tree/master/docs/response-object.md) - This object is passed into every middleware function and is used to produce the response.
+Routing is not built into the core of sans-server, but you can add it with [sans-server-router](https://www.npmjs.com/package/sans-server-router).
