@@ -265,7 +265,6 @@ function addHook(hooks, type, weight, hook) {
 
         const event = { weight: weight, hook: arguments[i] };
         store.push(event);
-        this.emit('hook-add-' + type, event);
     }
     return this;
 }
