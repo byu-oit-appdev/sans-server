@@ -23,15 +23,16 @@
   "license": "Apache-2.0",
   "devDependencies": {
     "chai": "^3.5.0",
-    "coveralls": "^2.13.1",
+    "coveralls": "^2.13.3",
     "mocha": "^3.5.3",
     "nyc": "^11.2.1"
   },
   "dependencies": {
     "cookie": "^0.3.1",
+    "debug": "^3.1.0",
     "fully-typed": "^1.1.2",
     "http-status": "^0.2.3",
-    "sans-server-middleware": "^1.2.3",
+    "sans-server-middleware": "^1.4.1",
     "uuid": "^3.1.0"
   },
   "repository": {
