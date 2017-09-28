@@ -15,7 +15,7 @@
  *    limitations under the License.
  **/
 'use strict';
-const debug                 = require('debug')('sans-server-request');
+const debug                 = require('debug')('sans-server:request');
 const EventEmitter          = require('events');
 const httpStatus            = require('http-status');
 const Middleware            = require('sans-server-middleware');

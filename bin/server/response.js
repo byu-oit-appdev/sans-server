@@ -16,7 +16,7 @@
  **/
 'use strict';
 const Cookie                = require('cookie');
-const debug                 = require('debug')('sans-server-response');
+const debug                 = require('debug')('sans-server:response');
 const httpStatus            = require('http-status');
 const util                  = require('../util');
 
