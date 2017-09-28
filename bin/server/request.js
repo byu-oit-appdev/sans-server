@@ -15,8 +15,8 @@
  *    limitations under the License.
  **/
 'use strict';
+const debug                 = require('debug')('sans-server-request');
 const EventEmitter          = require('events');
-const httpMethods           = require('./schemas').server.httpMethods;
 const httpStatus            = require('http-status');
 const Middleware            = require('sans-server-middleware');
 const Response              = require('./response');
@@ -46,10 +46,10 @@ function Request(server, keys, rejectable, config) {
 
         this.on('res-complete', () => {
             if (fulfilled) {
-                req.log('fulfilled', 'Request already fulfilled');
+                req.log('fulfilled', 'Already fulfilled');
             } else {
                 fulfilled = true;
-                req.log('fulfilled', 'Request fulfilled');
+                req.log('fulfilled');
                 resolve(res.state);
             }
         });
@@ -57,11 +57,11 @@ function Request(server, keys, rejectable, config) {
         this.on('error', err => {
             req.log('error', err.stack.replace(/\n/g, '\n  '), err);
             if (fulfilled) {
-                req.log('fulfilled', 'Request already fulfilled');
+                req.log('fulfilled', 'Already fulfilled');
             } else {
                 fulfilled = true;
                 res.reset().set('content-type', 'text/plain').status(500).body(httpStatus[500]);
-                req.log('fulfilled', 'Request fulfilled');
+                req.log('fulfilled');
                 if (rejectable) {
                     reject(err);
                 } else {
@@ -72,43 +72,10 @@ function Request(server, keys, rejectable, config) {
     });
 
     // initialize variables
+    const id = uuid();
     const hooks = {};
     const req = this;
     const res = new Response(this, keys.response);
-    const pendingLogs = [];
-
-    // validate and normalize input
-    Object.assign(this, config, normalize(pendingLogs, config));
-
-    /**
-     * The request body.
-     * @name Request#body
-     * @type {string|Object|Buffer|undefined}
-     */
-
-    /**
-     * The request headers. This is an object that has lower-case keys and string values.
-     * @name Request#headers
-     * @type {Object<string,string>}
-     */
-
-    /**
-     * This request method. The lower case equivalents of these value are acceptable but will be automatically lower-cased.
-     * @name Request#method
-     * @type {string} One of: 'GET', 'DELETE', 'HEAD', 'OPTIONS', 'PATCH', 'POST', 'PUT'
-     */
-
-    /**
-     * The request path, beginning with a '/'. Does not include domain or query string.
-     * @name Request#path
-     * @type {string}
-     */
-
-    /**
-     * An object mapping query parameters by key.
-     * @name Request#query
-     * @type {object<string,string>}
-     */
 
     /**
      * Get the unique ID associated with this request.
@@ -119,7 +86,7 @@ function Request(server, keys, rejectable, config) {
     Object.defineProperty(this, 'id', {
         configurable: false,
         enumerable: true,
-        value: uuid()
+        value: id
     });
 
     /**
@@ -198,13 +165,41 @@ function Request(server, keys, rejectable, config) {
      */
     this.then = (onFulfilled, onRejected) => promise.then(onFulfilled, onRejected);
 
+    /**
+     * The request body.
+     * @name Request#body
+     * @type {string|Object|Buffer|undefined}
+     */
+
+    /**
+     * The request headers. This is an object that has lower-case keys and string values.
+     * @name Request#headers
+     * @type {Object<string,string>}
+     */
+
+    /**
+     * This request method. The lower case equivalents of these value are acceptable but will be automatically lower-cased.
+     * @name Request#method
+     * @type {string} One of: 'GET', 'DELETE', 'HEAD', 'OPTIONS', 'PATCH', 'POST', 'PUT'
+     */
+
+    /**
+     * The request path, beginning with a '/'. Does not include domain or query string.
+     * @name Request#path
+     * @type {string}
+     */
+
+    /**
+     * An object mapping query parameters by key.
+     * @name Request#query
+     * @type {object<string,string>}
+     */
+
+    // validate and normalize input
+    Object.assign(this, config, normalize(req, config));
+
     // wait one tick for any event listeners to be added
     process.nextTick(() => {
-
-        // log pending logs
-        pendingLogs.forEach(message => {
-            req.log('warning', message, config);
-        });
 
         // run request hooks
         this.hook.run(keys.request)
@@ -271,20 +266,26 @@ function addHook(hooks, type, weight, hook) {
 
 /**
  * Produce a log event.
- * @param {string} [type='log']
  * @param {string} message
- * @param {Object} [details]
+ * @param {...*} [arg]
  * @returns {Request}
  * @fires Request#log
  */
-Request.prototype.log = function(type, message, details) {
+Request.prototype.log = function(message, arg) {
+    const data = util.format(arguments);
 
     /**
      * A log event.
      * @event Request#log
-     * @type {LogEvent}
+     * @type {{ type: string, data: string, timestamp: number} }
      */
-    this.emit('log', util.log('request', arguments));
+    this.emit('log', {
+        type: 'request',
+        data: data,
+        timestamp: Date.now()
+    });
+
+    debug(this.id + ' ' + data);
     return this;
 };
 
@@ -317,8 +318,12 @@ function extractQueryParamsFromString(store, str) {
         });
 }
 
-function normalize(pendingLogs, config) {
+function normalize(req, config) {
     const normal = {};
+
+    function warn(message, actual) {
+        req.log('warning %s Received: %s', message, actual)
+    }
 
     // validate and normalize body
     normal.body = '';
@@ -327,14 +332,13 @@ function normalize(pendingLogs, config) {
     // validate and normalize headers
     normal.headers = {};
     if (config.hasOwnProperty('headers')) {
-        let err = false;
         if (!config.headers || typeof config.headers !== 'object') {
-            pendingLogs.push('Request headers expected object. Received: ' + config.headers);
+            warn('Request headers expected object.', config.headers);
         } else {
             Object.keys(config.headers).forEach(key => {
                 let value = config.headers[key];
                 if (typeof value !== 'string') {
-                    err = pendingLogs.push('Request header value expected a string for key: ' + key + '. Received: ' + value);
+                    warn('Request header value expected a string for key: ' + key + '.', value);
                     value = String(value);
                 }
                 normal.headers[key.toLowerCase()] = value;
@@ -346,7 +350,7 @@ function normalize(pendingLogs, config) {
     normal.method = 'GET';
     if (config.hasOwnProperty('method')) {
         if (typeof config.method !== 'string') {
-            pendingLogs.push('Request method expected a string. Received: ' + config.method);
+            warn('Request method expected a string.', config.method);
         } else {
             normal.method = config.method.toUpperCase();
         }
@@ -367,8 +371,8 @@ function normalize(pendingLogs, config) {
                         if (v === true || typeof v === 'string') {
                             normal.query[key].push(v);
                         } else {
-                            pendingLogs.push('Request query expects value to be a string or true for property ' + key +
-                                ' at index ' + i + '. Received: ' + v);
+                            warn('Request query expects value to be a string or true for property ' + key +
+                                ' at index ' + i + '.', v);
                             normal.query[key].push(String(v));
                         }
                     });
@@ -376,12 +380,12 @@ function normalize(pendingLogs, config) {
                     normal.query[key] = value;
 
                 } else {
-                    pendingLogs.push('Request query expects value to be a string or true for property ' + key + '. Received: ' + value);
+                    warn('Request query expects value to be a string or true for property ' + key + '.', value);
                     normal.query[key] = String(value);
                 }
             });
         } else {
-            pendingLogs.push('Request query expected a string or non-null object. Received: ' + config.query);
+            warn('Request query expected a string or non-null object.', config.query);
         }
     }
 
@@ -389,7 +393,7 @@ function normalize(pendingLogs, config) {
     normal.path = '';
     if (config.hasOwnProperty('path')) {
         if (typeof config.path !== 'string') {
-            pendingLogs.push('Request path expected a string. Received: ' + config.path);
+            warn('Request path expected a string.', config.path);
         } else {
             const parts = config.path.split('?');
             normal.path = parts[0];

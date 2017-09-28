@@ -16,6 +16,7 @@
  **/
 'use strict';
 const Cookie                = require('cookie');
+const debug                 = require('debug')('sans-server-response');
 const httpStatus            = require('http-status');
 const util                  = require('../util');
 
@@ -121,8 +122,7 @@ Response.prototype.body = function(value) {
     this[STORE].body = value;
 
     // produce log
-    const message = truncateString(String(value));
-    this.log('set-body', message, { value: value });
+    this.log('set-body', truncateString(String(value)));
 
     this.req.emit('res-set-body', this);
     this.req.emit('res-state-change', this);
@@ -157,10 +157,7 @@ Response.prototype.clearHeader = function(key) {
         const value = headers[key];
         delete headers[key];
 
-        this.log('clear-header', key + ': ' + value, {
-            name: key,
-            value: value
-        });
+        this.log('clear-header %s:%s', key, value);
 
         this.req.emit('res-clear-header', this);
         this.req.emit('res-state-change', this);
@@ -205,7 +202,7 @@ Response.prototype.cookie = function(name, value, options) {
     };
     this[STORE].cookies.push(cookie);
 
-    this.log('set-cookie', name + ': ' + value, cookie);
+    this.log('set-cookie %s:%s', name, value);
 
     this.req.emit('res-set-cookie', this);
     this.req.emit('res-state-change', this);
@@ -214,20 +211,26 @@ Response.prototype.cookie = function(name, value, options) {
 
 /**
  * Produce a log event.
- * @param {string} [type='log']
  * @param {string} message
- * @param {Object} [details]
+ * @param {...*} [arg]
  * @returns {Response}
- * @fires Request#log
+ * @fires Response#log
  */
-Response.prototype.log = function(type, message, details) {
+Response.prototype.log = function(message, arg) {
+    const data = util.format(arguments);
 
     /**
      * A log event.
-     * @event Request#log
-     * @type {LogEvent}
+     * @event Response#log
+     * @type {{ type: string, data: string, timestamp: number} }
      */
-    this.req.emit('log', util.log('response', arguments));
+    this.req.emit('log', {
+        type: 'response',
+        data: data,
+        timestamp: Date.now()
+    });
+
+    debug(this.req.id + ' ' + data);
     return this;
 };
 
@@ -261,7 +264,7 @@ Response.prototype.reset = function() {
     store.headers = {};
     store.statusCode = 0;
 
-    this.log('reset', 'Response data reset.');
+    this.log('reset Response data reset.');
 
     this.req.emit('res-reset', this);
     this.req.emit('res-state-change', this);
@@ -292,8 +295,7 @@ Response.prototype.send = function(body) {
     if (arguments.length > 0) this.body(body);
 
     // log the current state
-    const subBody = truncateString(store.statusCode + ' ' + store.body);
-    this.log('send', subBody, this.state);
+    this.log('send %s %s', store.statusCode, truncateString(store.body));
 
     this.req.emit('res-send', this);
 
@@ -345,10 +347,7 @@ Response.prototype.set = function(key, value) {
 
     key = key.toLowerCase();
     this[STORE].headers[key] = value;
-    this.log('set-header', key + ': ' + value, {
-        header: key,
-        value: value
-    });
+    this.log('set-header %s:%s', key, value);
 
     this.req.emit('res-set-header', this);
     this.req.emit('res-state-change', this);
@@ -381,7 +380,7 @@ Response.prototype.status = function(code) {
     }
 
     this[STORE].statusCode = code;
-    this.log('set-status', String(code), { statusCode: code });
+    this.log('set-status', String(code));
 
     this.req.emit('res-set-status', this);
     this.req.emit('res-state-change', this);
