@@ -246,13 +246,6 @@ function request(server, config, hooks, keys, request, callback) {
         }
     })();
 
-    // copy hooks into request
-    Object.keys(hooks).forEach(type => {
-        hooks[type].forEach(d => {
-            req.hook(type, d.weight, d.hook)
-        });
-    });
-
     // event log aggregation
     const queue = config.logs ? [] : null;
     if (queue) req.on('log', event => queue.push(event));
@@ -274,6 +267,15 @@ function request(server, config, hooks, keys, request, callback) {
         };
         req.then(log, () => log(req.res.state));
     }
+
+    // copy hooks into request
+    req.log('initialized');
+    Object.keys(hooks).forEach(type => {
+        hooks[type].forEach(d => {
+            req.hook(type, d.weight, d.hook)
+        });
+    });
+    req.log('hooks applied');
 
     // is using a callback paradigm then execute the callback
     if (typeof callback === 'function') req.then(state => callback(null, state), err => callback(err, req.res.state));
