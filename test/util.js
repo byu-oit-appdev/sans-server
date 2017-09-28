@@ -33,58 +33,6 @@ describe('util', () => {
 
     });
 
-    describe('log', () => {
-
-        it('no args throws error', () => {
-            expect(() => util.log('category', [])).to.throw(Error);
-        });
-
-        it('string only', () => {
-            const event = util.log('category', ['first']);
-            expect(event).to.deep.equal({
-                action: 'log',
-                category: 'category',
-                details: {},
-                message: 'first',
-                timestamp: event.timestamp
-            });
-        });
-
-        it('string, string', () => {
-            const event = util.log('category', ['first', 'second']);
-            expect(event).to.deep.equal({
-                action: 'first',
-                category: 'category',
-                details: {},
-                message: 'second',
-                timestamp: event.timestamp
-            });
-        });
-
-        it('string, object', () => {
-            const event = util.log('category', ['first', { a: true }]);
-            expect(event).to.deep.equal({
-                action: 'log',
-                category: 'category',
-                details: { a: true },
-                message: 'first',
-                timestamp: event.timestamp
-            });
-        });
-
-        it('string, string, object', () => {
-            const event = util.log('category', ['first', 'second', { a: true }]);
-            expect(event).to.deep.equal({
-                action: 'first',
-                category: 'category',
-                details: { a: true },
-                message: 'second',
-                timestamp: event.timestamp
-            });
-        });
-
-    });
-
     describe('copy', () => {
 
         it('primitive', () => {

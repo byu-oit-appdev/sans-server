@@ -32,7 +32,8 @@ describe('response', () => {
         });
         return server.request()
             .on('log', event => {
-                if (event.action === 'set-body') truncated = /\.\.\.$/.test(event.message);
+                const message = event.data;
+                if (/^set-body /.test(message)) truncated = /\.\.\.$/.test(message);
             })
             .then(res => {
                 expect(truncated).to.be.true;

@@ -19,6 +19,10 @@ const expect            = require('chai').expect;
 const Request           = require('../bin/server/request');
 const SansServer        = require('../bin/server/sans-server');
 
+/*process.on('unhandledRejection', e => {
+    console.error(e.stack);
+});*/
+
 describe('san-server', () => {
     let server;
 
@@ -80,24 +84,12 @@ describe('san-server', () => {
         });
 
         it('can silence logging without error', () => {
-            const server = SansServer({ logs: { silent: true }});
+            const server = SansServer({ logs: false});
             server.use(function(req, res, next) {
                 this.log('foo');
                 next();
             });
             return server.request();
-        });
-
-        it('can silence with shortcut config', () => {
-            expect(() => SansServer({ logs: 'silent'})).not.to.throw(Error);
-        });
-
-        it('can verbose with shortcut config', () => {
-            expect(() => SansServer({ logs: 'verbose'})).not.to.throw(Error);
-        });
-
-        it('cannot use other shortcut config', () => {
-            expect(() => SansServer({ logs: 'abc'})).to.throw(Error);
         });
 
     });
