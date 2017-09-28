@@ -15,11 +15,12 @@
  *    limitations under the License.
  **/
 'use strict';
-const EventEmitter          = require('events');
 const httpStatus            = require('http-status');
 const prettyPrint           = require('../pretty-print');
 const Request               = require('./request');
-const schema                = require('./schemas').server;
+const util                  = require('../util');
+
+const httpMethods = ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'];
 
 module.exports = SansServer;
 
@@ -39,11 +40,13 @@ module.exports = SansServer;
  */
 function SansServer(configuration) {
     if (!(this instanceof SansServer)) return new SansServer(configuration);
-    if (!configuration) configuration = {};
-    if (configuration.logs === 'silent') configuration.logs = { silent: true };
-    if (configuration.logs === 'verbose') configuration.logs = { verbose: true };
 
-    const config = schema.normalize(configuration);
+    const config = configuration && typeof configuration === 'object' ? Object.assign(configuration) : {};
+    config.logs = config.hasOwnProperty('logs') ? config.logs : true;
+    config.rejectable = config.hasOwnProperty('rejectable') ? config.rejectable : false;
+    config.timeout = config.hasOwnProperty('timeout') && !isNaN(config.timeout) && config.timeout >= 0 ? config.timeout : 30;
+    config.useBuiltInHooks = config.hasOwnProperty('useBuiltInHooks') ? config.useBuiltInHooks : true;
+
     const hooks = {};
     const keys = {};
     const runners = {
@@ -251,52 +254,23 @@ function request(server, config, hooks, keys, request, callback) {
     });
 
     // event log aggregation
-    const queue = config.logs.grouped ? [] : null;
-    if (!config.logs.silent) {
-        let prev = start;
-        req.on('log', event => {
-            const now = event.timestamp || Date.now();
-            const data = {
-                action: event.action,
-                category: event.category,
-                details: event.details,
-                diff: now - prev,
-                duration: now - start,
-                message: event.message,
-                now: now,
-                requestId: req.id
-            };
-            prev = now;
-            if (config.logs.grouped) {
-                queue.push(data);
-            } else {
-                console.log(eventMessage({ action: 18, category: 18 }, config.logs, data));
-            }
-        });
-    }
+    const queue = config.logs ? [] : null;
+    if (queue) req.on('log', event => queue.push(event));
 
-    // if logging is grouped then output the log now
-    if (!config.logs.silent && config.logs.grouped) {
+    // if logging enabled then produce the log when the request is fulfilled or rejected
+    if (queue) {
         const log = function(state) {
-            const duration = queue[queue.length - 1].now - start;
-            const longest = { action: 0, category: 0 };
-            queue.forEach(item => {
-                const actionLength = item.action.length;
-                const categoryLength = item.category.length;
-                if (actionLength > longest.action) longest.action = actionLength;
-                if (categoryLength > longest.category) longest.category = categoryLength;
+            const events = queue.map((event, index) => {
+                const seconds = util.seconds(event.timestamp - (index > 0 ? queue[index - 1].timestamp : start));
+                return '[+' + seconds + 's] ' + event.type + ' ' + event.data;
             });
-
-            let log = state.statusCode + ' ' + req.method + ' ' + req.url +
+            console.log(state.statusCode + ' ' + req.method + ' ' + req.url +
                 (state.statusCode === 302 ? '\n  Redirect To: ' + state.headers['location']  : '') +
                 '\n  ID: ' + req.id +
                 '\n  Start: ' + new Date(start).toISOString() +
-                '\n  Duration: ' + prettyPrint.seconds(duration) +
+                '\n  Duration: ' + prettyPrint.seconds(Date.now() - start) +
                 '\n  Events:\n    ' +
-                queue.map(function (data) {
-                    return eventMessage(longest, config.logs, data);
-                }).join('\n    ');
-            console.log(log);
+                events.join('\n    '));
         };
         req.then(log, () => log(req.res.state));
     }
@@ -383,7 +357,7 @@ function transform(req, res, next) {
  * @param {function} next
  */
 function validMethod(req, res, next) {
-    if (schema.httpMethods.indexOf(req.method) === -1) {
+    if (httpMethods.indexOf(req.method) === -1) {
         res.sendStatus(405);
     } else {
         next();
