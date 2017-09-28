@@ -31,7 +31,7 @@
     "cookie": "^0.3.1",
     "debug": "^3.1.0",
     "http-status": "^0.2.3",
-    "sans-server-middleware": "^1.4.1",
+    "sans-server-middleware": "^1.4.2",
     "uuid": "^3.1.0"
   },
   "repository": {
