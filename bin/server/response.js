@@ -16,7 +16,6 @@
  **/
 'use strict';
 const Cookie                = require('cookie');
-const debug                 = require('debug')('sans-server:response');
 const httpStatus            = require('http-status');
 const util                  = require('../util');
 
@@ -107,6 +106,15 @@ function Response(request, key) {
         get: () => store.statusCode,
         set: v => this.status(v)
     });
+
+    /**
+     * Produce a log event.
+     * @param {string} message
+     * @param {...*} [arg]
+     * @returns {Response}
+     * @fires Response#log
+     */
+    this.log = request.logger('sans-server', 'response', this);
 }
 
 /**
@@ -206,31 +214,6 @@ Response.prototype.cookie = function(name, value, options) {
 
     this.req.emit('res-set-cookie', this);
     this.req.emit('res-state-change', this);
-    return this;
-};
-
-/**
- * Produce a log event.
- * @param {string} message
- * @param {...*} [arg]
- * @returns {Response}
- * @fires Response#log
- */
-Response.prototype.log = function(message, arg) {
-    const data = util.format(arguments);
-
-    /**
-     * A log event.
-     * @event Response#log
-     * @type {{ type: string, data: string, timestamp: number} }
-     */
-    this.req.emit('log', {
-        type: 'response',
-        data: data,
-        timestamp: Date.now()
-    });
-
-    debug(this.req.id + ' ' + data);
     return this;
 };
 

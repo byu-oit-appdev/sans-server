@@ -15,7 +15,7 @@
  *    limitations under the License.
  **/
 'use strict';
-const debug                 = require('debug')('sans-server:request');
+const Debug                 = require('debug');
 const EventEmitter          = require('events');
 const httpStatus            = require('http-status');
 const Middleware            = require('sans-server-middleware');
@@ -132,6 +132,15 @@ function Request(server, keys, rejectable, config) {
     this.catch = onRejected => promise.catch(onRejected);
 
     /**
+     * Produce a request log event.
+     * @param {string} message
+     * @param {...*} [args]
+     * @returns {Request}
+     * @fires Request#log
+     */
+    this.log = this.logger('sans-server', 'request', this);
+
+    /**
      * Add request specific hooks
      * @param {string} type
      * @param {number} [weight=0]
@@ -223,29 +232,22 @@ Request.prototype = Object.create(EventEmitter.prototype);
 Request.prototype.name = 'Request';
 Request.prototype.constructor = Request;
 
-/**
- * Produce a log event.
- * @param {string} message
- * @param {...*} [arg]
- * @returns {Request}
- * @fires Request#log
- */
-Request.prototype.log = function(message, arg) {
-    const data = util.format(arguments);
+Request.prototype.logger = function(category, type, returnValue) {
+    const req = this;
+    const debug = Debug(category + ':' + type);
+    return function(message, args) {
+        const data = util.format(arguments);
 
-    /**
-     * A log event.
-     * @event Request#log
-     * @type {{ type: string, data: string, timestamp: number} }
-     */
-    this.emit('log', {
-        type: 'request',
-        data: data,
-        timestamp: Date.now()
-    });
+        req.emit('log', {
+            category: category,
+            type: type,
+            data: data,
+            timestamp: Date.now()
+        });
 
-    debug(this.id + ' ' + data);
-    return this;
+        debug(req.id + ' ' + data);
+        return returnValue;
+    }
 };
 
 /**

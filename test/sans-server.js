@@ -331,12 +331,7 @@ describe('san-server', () => {
 
         it('a', () => {
             const server = SansServer({
-                logs: {
-                    duration: true,
-                    timeDiff: false,
-                    timestamp: true,
-                    verbose: true
-                },
+                logs: true,
                 timeout: .1
             });
             server.use(function timeout(req, res, next) {
@@ -344,13 +339,6 @@ describe('san-server', () => {
                 req.log('Two', 'Second');
                 req.log('Three', { details: true });
                 req.log('Four', 'Forth', { details: true });
-                req.emit('log', {
-                    action: 'A long action description that could be truncated',
-                    category: 'A category',
-                    details: {},
-                    message: '',
-                    timestamp: Date.now()
-                });
                 req.log('A longer action name that must be truncated', 'Message');
                 res.send('OK');
             });
@@ -359,12 +347,7 @@ describe('san-server', () => {
 
         it('b', () => {
             const server = SansServer({
-                logs: {
-                    duration: true,
-                    timeDiff: false,
-                    timestamp: true,
-                    verbose: false
-                },
+                logs: true,
                 timeout: .1
             });
             server.use(function timeout(req, res, next) {
@@ -372,12 +355,6 @@ describe('san-server', () => {
                 req.log('Two', 'Second');
                 req.log('Three', { details: true });
                 req.log('Four', 'Forth', { details: true });
-                req.emit('log', {
-                    action: 'An action',
-                    category: 'A long category description that could be truncated',
-                    details: {},
-                    message: ''
-                });
                 req.log('A longer action name that must be truncated', 'Message');
                 res.send('OK');
             });
