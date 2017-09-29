@@ -55,7 +55,7 @@ function Request(server, keys, rejectable, config) {
         });
 
         this.on('error', err => {
-            req.log('error', err.stack.replace(/\n/g, '\n  '), err);
+            req.log('error', err.stack.replace(/\n/g, '\n  '));
             if (fulfilled) {
                 req.log('fulfilled', 'Already fulfilled');
             } else {
