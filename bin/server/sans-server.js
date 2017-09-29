@@ -106,7 +106,7 @@ function SansServer(configuration) {
     keys.response = this.hook.define('response');
 
     // set request hooks
-    if (config.timeout) this.hook('request', Number.MIN_SAFE_INTEGER, timeout(config.timeout));
+    if (config.timeout) this.hook('request', Number.MIN_SAFE_INTEGER + 10, timeout(config.timeout));
     if (config.useBuiltInHooks) this.hook('request', -100000, validMethod);
 
     // set response hooks
