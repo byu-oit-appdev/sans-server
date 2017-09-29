@@ -15,380 +15,323 @@
  *    limitations under the License.
  **/
 'use strict';
-const emitter               = require('../emitter');
-const Log                   = require('./log');
+const httpStatus            = require('http-status');
 const prettyPrint           = require('../pretty-print');
 const Request               = require('./request');
-const Response              = require('./response');
-const schemas               = require('./schemas');
+const util                  = require('../util');
 
-const event = Log.firer('server');
-const map = new WeakMap();
+const httpMethods = ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'];
 
 module.exports = SansServer;
 
 /**
  * Create a san-server instance.
- * @param [configuration]
+ * @param {object} [configuration] Configuration options.
+ * @param {string|object} [configuration.logs] An object configuring log output.
+ * @param {boolean} [configuration.logs.duration=false] Set to true to show the time into the request at which the log occurred.
+ * @param {boolean} [configuration.logs.grouped=true] Set to true to group all logs for a single request together before outputting to console.
+ * @param {boolean} [configuration.logs.silent=false] Set to true to silence all logs.
+ * @param {boolean} [configuration.logs.timeDiff=true] Set to true to show the time difference between log events.
+ * @param {boolean} [configuration.logs.timestamp=false] Set to true to display the timestamp for each log event.
+ * @param {boolean} [configuration.logs.verbose=false] Set to true to output more details about each log event.
+ * @param {number} [configuration.timeout=30] The number of seconds to wait before timeout for a request.
  * @returns {SansServer}
  * @constructor
  */
 function SansServer(configuration) {
-    if (!configuration) configuration = {};
-    if (configuration.logs === 'silent') configuration.logs = { silent: true };
-    if (configuration.logs === 'verbose') configuration.logs = { verbose: true };
-    const config = schemas.server.normalize(configuration);
-    const server = Object.create(SansServer.prototype);
+    if (!(this instanceof SansServer)) return new SansServer(configuration);
 
-    // store configuration for this factory
-    map.set(server, {
-        config: config,
-        middleware: []
-    });
+    const config = configuration && typeof configuration === 'object' ? Object.assign(configuration) : {};
+    config.logs = config.hasOwnProperty('logs') ? config.logs : true;
+    config.rejectable = config.hasOwnProperty('rejectable') ? config.rejectable : false;
+    config.timeout = config.hasOwnProperty('timeout') && !isNaN(config.timeout) && config.timeout >= 0 ? config.timeout : 30;
+    config.useBuiltInHooks = config.hasOwnProperty('useBuiltInHooks') ? config.useBuiltInHooks : true;
 
-    // use built-in pre-processing middleware
-    if (config.methodCheck) server.use(methodChecks(config));
-
-    // use each middleware in configuration
-    server.use.apply(server, config.middleware);
-
-    return server;
-}
-
-/**
- * Get a copy of the configuration used to create the server instance.
- * @returns {object}
- */
-Object.defineProperty(SansServer.prototype, 'config', {
-    get: function() {
-        validateContext(this);
-        const result = Object.assign({}, map.get(this).config);
-        result.logs = Object.assign({}, result.logs);
-        result.middleware = result.middleware.slice(0);
-        result.supportedMethods = result.supportedMethods.slice(0);
-        return result;
-    }
-});
-
-/**
- * Fire an event that is specific to this SansServer instance.
- * @param {string} name The event name.
- * @param {...*} args Arguments to pass with the event.
- */
-SansServer.prototype.emit = function(name, args) {
-    emitter.emit.apply(emitter, arguments);
-};
-
-/**
- * Produce a log event. This function is overwritten by middleware runner.
- * @param {string} type
- * @param {string} message
- * @param {object} [details]
- */
-SansServer.prototype.log = function(type, message, details) {
-
-};
-
-/**
- * Have the server execute a request.
- * @name SansServer#request
- * @params {object|string} [request={}] An object that has request details or a string that is a GET endpoint.
- * @params {function} [callback] The function to call once the request has been processed.
- * @returns {Promise|undefined}
- */
-SansServer.prototype.request = function(request, callback) {
-    // handle argument variations
-    if (arguments.length === 0) {
-        request = {};
-    } else if (arguments.length === 1 && typeof arguments[0] === 'function') {
-        callback = arguments[0];
-        request = {};
-    }
-
-    try {
-        // validate context
-        validateContext(this);
-
-        // get middleware chain
-        const server = map.get(this);
-        const config = server.config;
-        const chain = server.middleware.concat();
-        const hooks = config.hooks.concat();
-
-        // use built-in post-processing middleware
-        chain.push(unhandled);
-
-        // initialize variables
-        const req = Request(request);
-        const start = Date.now();
-        let timeoutId;
-        this.emit('request', req);
-
-        // listen for events related the the processing of the request
-        const queue = config.logs.grouped ? [] : null;
-        let prev = start;
-        Log.on(req, function (firer, action, message, event) {
-            if (!config.logs.silent) {
-                const now = Date.now();
-                const data = {
-                    action: action,
-                    diff: now - prev,
-                    duration: now - start,
-                    event: event,
-                    firer: firer,
-                    message: message,
-                    now: now,
-                    requestId: req.id
-                };
-                prev = now;
-                if (config.logs.grouped) {
-                    queue.push(data);
-                } else {
-                    console.log(eventMessage(config.logs, data));
-                }
-            }
-        });
-
-        // build the response handler
-        const res = Response(req);
-
-        // add hooks to the response object
-        let hook;
-        while (hook = hooks.pop()) res.hook(hook);
-
-        // get the promise of request resolution
-        const promise = req.promise
-            .catch(function(err) {
-                const data = Response.error();
-                data.error = err;
-                return data;
-            })
-            .then(function(data) {
-                const hasData = data && typeof data === 'object';
-                const logData = {
-                    statusCode: (hasData && data.statusCode) || 0,
-                    location: (hasData && data.headers && typeof data.headers === 'object' && data.headers.location) || ''
-                };
-
-                // emit the end event
-                const end = Date.now();
-                const duration = end - start;
-                const eventData = hasData ? Object.assign({}, data) : {};
-                eventData.time = end;
-                event(req, 'request-end', logData.statusCode + ' response status', eventData);
-
-                // turn off event handling
-                Log.off(req);
-
-                // if grouped logging then log the events to the console now
-                if (queue && !config.logs.silent) {
-                    let log = logData.statusCode + ' ' + req.method + ' ' + req.url +
-                        (logData.statusCode === 302 ? '\n  Redirect To: ' + logData.location  : '') +
-                        '\n  ID: ' + req.id +
-                        '\n  Start: ' + new Date(start).toISOString() +
-                        '\n  Duration: ' + prettyPrint.seconds(duration) +
-                        '\n  Events:\n    ' +
-                        queue.map(function (data) {
-                            return eventMessage(config.logs, data);
-                        }).join('\n    ');
-                    console.log(log);
-                }
-
-                // clear the timeout
-                clearTimeout(timeoutId);
-
-                return data;
-            });
-
-        // create and emit the start event
-        event(req, 'request-start', req.method + ' ' + req.path, {
-            body: req.body,
-            headers: req.headers,
-            method: req.method,
-            path: req.path,
-            query: req.query,
-            time: start
-        });
-
-        timeoutId = setTimeout(function () {
-            res.sendStatus(504);
-        }, 1000 * config.timeout);
-
-        // run the middleware
-        run(chain, req, res);
-
-        // return the result
-        return paradigm(promise, callback);
-
-    } catch (err) {
-        return paradigm(Promise.reject(err), callback);
-    }
-};
-
-/**
- * Specify a middleware to use.
- * @param {function} middleware...
- */
-SansServer.prototype.use = function(middleware) {
-    validateContext(this);
-
+    const hooks = {};
+    const keys = {};
+    const runners = {
+        symbols: {},
+        types: {}
+    };
     const server = this;
-    const middlewares = map.get(this).middleware;
 
-    for (let i = 0; i < arguments.length; i++) {
-        const mw = arguments[i];
-        if (typeof mw !== 'function') throw Error('Invalid middleware specified. Expected a function. Received: ' + mw);
+    /**
+     * Define a hook that is applied to all requests.
+     * @param {string} type
+     * @param {number} [weight=0]
+     * @param {...function} hook
+     * @returns {SansServer}
+     */
+    this.hook = addHook.bind(server, hooks);
 
-        const name = mw.name || 'middleware-' + (middlewares.length + 1);
-        const logger = Log.firer(name.replace(/([A-Z])/g, function($1){return "_" + $1}));
-        const wrapped = function(req, res, next) {
-            server.log = function(title, message, details) {
-                logger(req, title, message, details);
-            };
-            mw.call(server, req, res, next);
-        };
-        wrapped.middlewareName = name;
-        middlewares.push(wrapped);
-    }
+    /**
+     * Define a hook runner and get back a Symbol that is used to execute the hooks.
+     * @name SansServer#hook.define
+     * @function
+     * @param {string} type
+     * @returns {Symbol}
+     */
+    this.hook.define = type => defineHookRunner(runners, type);
+
+    /**
+     * Get the hook type for a specific symbol.
+     * @name SansServer#hook.type
+     * @function
+     * @param {Symbol} key The symbol to use to get they type.
+     * @returns {string}
+     */
+    this.hook.type = key => runners.symbols[key];
+
+    /**
+     * Have the server execute a request.
+     * @param {object|string} [req={}] An object that has request details or a string that is a GET endpoint.
+     * @param {function} [callback] The function to call once the request has been processed.
+     * @returns {Request}
+     * @listens Request#log
+     */
+    this.request = (req, callback) => request(server, config, hooks, keys, req, callback);
+
+    /**
+     * Specify a middleware to use.
+     * @param {...Function} middleware
+     * @throws {Error}
+     * @returns {SansServer}
+     */
+    this.use = this.hook.bind(this, 'request', 0);
+
+
+
+    // define the request and response hooks
+    keys.request = this.hook.define('request');
+    keys.response = this.hook.define('response');
+
+    // set request hooks
+    if (config.timeout) this.hook('request', Number.MIN_SAFE_INTEGER + 10, timeout(config.timeout));
+    if (config.useBuiltInHooks) this.hook('request', -100000, validMethod);
+
+    // set response hooks
+    if (config.useBuiltInHooks) this.hook('response', 100000, transform);
+}
+
+/**
+ * Expose built in hooks.
+ * @type {{validateMethod: validMethod, transformResponse: transform}}
+ */
+SansServer.hooks = {
+    validateMethod: validMethod,
+    transformResponse: transform
 };
 
-SansServer.prototype.hook = function(hook) {
-    validateContext(this);
 
+/**
+ * Define a hook that is applied to all requests.
+ * @param {object} hooks
+ * @param {string} type
+ * @param {number} [weight=0]
+ * @param {...function} hook
+ * @returns {SansServer}
+ */
+function addHook(hooks, type, weight, hook) {
     const length = arguments.length;
-    const hooks = map.get(this).config.hooks;
+    let start = 2;
 
-    for (let i = 0; i < length; i++) {
-        const hook = arguments[i];
-        if (typeof hook !== 'function') throw Error('Invalid hook specified. Expected a function. Received: ' + hook);
-        hooks.push(hook);
-    }
-};
-
-/**
- * Expose the server emitter to allow emitting of events and adding or removing event listeners.
- * @type {Emitter}
- */
-SansServer.emitter = emitter;
-
-/**
- * Expose the request constructor. Useful for writing tests for plugins.
- * @type {Request}
- */
-SansServer.Request = Request;
-
-/**
- * Expose the response constructor. Useful for writing tests for plugins.
- * @type {Response}
- */
-SansServer.Response = Response;
-
-/**
- * Produce a consistent message from event data.
- * @param {object} config SansServer logs configuration.
- * @param {object} data
- * @returns {string}
- */
-function eventMessage(config, data) {
-    return prettyPrint.fixedLength(data.firer, 15) + '  ' +
-        prettyPrint.fixedLength(data.action, 15) + '  ' +
-        (config.grouped ? '' : data.requestId + '  ') +
-        (config.timeStamp ? new Date(data.now).toISOString() + '  ' : '') +
-        (config.timeDiff ? '+' + prettyPrint.seconds(data.diff) + '  ' : '') +
-        (config.duration ? '@' + prettyPrint.seconds(data.duration) + '  ' : '') +
-        data.message +
-        (config.verbose && data.event && typeof data.event === 'object'
-            ? '\n\t' + JSON.stringify(data.event, null, '  ').replace(/^/gm, '\t')
-            : '');
-}
-
-/**
- * Check to see if the request matches a supported method.
- * @param {object} config
- * @returns {Function}
- */
-function methodChecks(config) {
-    // build a map of supported methods
-    const methods = config.supportedMethods.reduce(function(prev, key) {
-        prev[key] = true;
-        return prev;
-    }, {});
-
-    // return middleware
-    return function methodChecks(req, res, next) {
-        if (methods[req.method]) return next();
-        res.sendStatus(405);
-    }
-}
-
-/**
- * Handle callback or promise paradigm.
- * @param {Promise} promise
- * @param {Function|undefined} callback
- * @returns {Promise|undefined}
- */
-function paradigm(promise, callback) {
-    const p = promise.then(
-        function(res) { return res },
-        function(err) {
-            const res = Response.error();
-            res.error = err;
-            return res;
-        }
-    );
-    if (typeof callback !== 'function') return p;
-    p.then(function(res) { callback(res); });
-}
-
-/**
- * Run middleware chain.
- * @param {function[]} chain
- * @param {Request} req
- * @param {Response} res
- */
-function run(chain, req, res) {
-    if (chain.length > 0 && !res.sent) {
-        const callback = chain.shift();
-        const name = callback.middlewareName;
-        event(req, 'middleware', 'Begin middleware: ' + name, { name: name });
-        try {
-            callback(req, res, function (err) {
-                if (err) event(req, 'middleware', 'Error running middleware: ' + name + '. ' + err.stack, { name: name, error: err });
-                if (err && !res.sent) return res.send(err);
-                event(req, 'middleware', 'End middleware: ' + name, { name: name });
-                run(chain, req, res);
-            });
-        } catch (e) {
-            event(req, 'middleware', 'Unexpected error running middleware: ' + name + '. ' + e.stack, { name: name, error: e });
-            event(req, 'middleware', 'End middleware: ' + name, { name: name });
-            res.send(e);
-        }
-    }
-}
-
-/**
- * Built in middleware to handle any requests that fall through unhandled.
- * @param {Request} req
- * @param {Response} res
- */
-function unhandled(req, res) {
-    if (res.state.statusCode === 0) {
-        res.sendStatus(404);
-    } else {
-        res.send();
-    }
-}
-unhandled.middlewareName = 'unhandled';
-
-/**
- * Validate context or throw an error.
- * @param {SansServer} context
- */
-function validateContext(context) {
-    if (!map.has(context)) {
-        const err = Error('Invalid execution context. Must be an instance of SansServer. Currently: ' + this);
-        err.code = 'ESSCTX';
-        err.context = this;
+    if (typeof type !== 'string') {
+        const err = Error('Expected first parameter to be a string. Received: ' + type);
+        err.code = 'ESHOOK';
         throw err;
+    }
+
+    // handle variable input parameters
+    if (typeof arguments[2] === 'number') {
+        start = 3;
+    } else {
+        weight = 0;
+    }
+
+    if (!hooks[type]) hooks[type] = [];
+    const store = hooks[type];
+    for (let i = start; i < length; i++) {
+        const hook = arguments[i];
+        if (typeof hook !== 'function') {
+            const err = Error('Invalid hook specified. Expected a function. Received: ' + hook);
+            err.code = 'ESHOOK';
+            throw err;
+        }
+        store.push({ weight: weight, hook: hook });
+    }
+
+    return this;
+}
+
+/**
+ * Define a hook runner by specifying a unique type that can only be executed using the symbol returned.
+ * @param {{types: object, symbols: object}} runners
+ * @param {string} type
+ * @returns {Symbol}
+ */
+function defineHookRunner(runners, type) {
+    if (runners.types.hasOwnProperty(type)) {
+        const err = Error('There is already a hook runner defined for this type: ' + type);
+        err.code = 'ESHOOK';
+        throw err;
+    }
+
+    const s = Symbol(type);
+    runners.types[type] = s;
+    runners.symbols[s] = type;
+
+    return s;
+}
+
+/**
+ * Get a request started.
+ * @param {SansServer} server
+ * @param {object} config
+ * @param {object} hooks
+ * @param {object} keys
+ * @param {object} [request]
+ * @param {function} [callback]
+ */
+function request(server, config, hooks, keys, request, callback) {
+    const start = Date.now();
+
+    if (typeof request === 'function' && typeof callback !== 'function') {
+        callback = request;
+        request = {};
+    }
+
+    // handle argument variations and get Request instance
+    const args = Array.from(arguments).slice(4).filter(v => v !== undefined);
+    const req = (function() {
+        const length = args.length;
+        if (length === 0) {
+            return new Request(server, keys, config.rejectable);
+
+        } else if (length === 1 && typeof args[0] === 'function') {
+            callback = args[0];
+            return new Request(server, keys, config.rejectable);
+
+        } else {
+            return new Request(server, keys, config.rejectable, request);
+        }
+    })();
+
+    // event log aggregation
+    const queue = config.logs ? [] : null;
+    if (queue) req.on('log', event => queue.push(event));
+
+    // if logging enabled then produce the log when the request is fulfilled or rejected
+    if (queue) {
+        const log = function(state) {
+            const events = queue.map((event, index) => {
+                const seconds = util.seconds(event.timestamp - (index > 0 ? queue[index - 1].timestamp : start));
+                return '[+' + seconds + 's] ' + event.type + ' ' + event.data;
+            });
+            console.log(state.statusCode + ' ' + req.method + ' ' + req.url +
+                (state.statusCode === 302 ? '\n  Redirect To: ' + state.headers['location']  : '') +
+                '\n  ID: ' + req.id +
+                '\n  Start: ' + new Date(start).toISOString() +
+                '\n  Duration: ' + prettyPrint.seconds(Date.now() - start) +
+                '\n  Events:\n    ' +
+                events.join('\n    '));
+        };
+        req.then(log, () => log(req.res.state));
+    }
+
+    // copy hooks into request
+    req.log('initialized');
+    Object.keys(hooks).forEach(type => {
+        hooks[type].forEach(d => {
+            req.hook(type, d.weight, d.hook)
+        });
+    });
+    req.log('hooks applied');
+
+    // is using a callback paradigm then execute the callback
+    if (typeof callback === 'function') req.then(state => callback(null, state), err => callback(err, req.res.state));
+
+    return req;
+}
+
+/**
+ * Request middleware to apply timeouts to the request.
+ * @param {number} seconds
+ * @returns {function}
+ */
+function timeout(seconds) {
+    return function timeoutSet(req, res, next) {
+        const timeoutId = setTimeout(() => {
+            if (!res.sent) res.sendStatus(504)
+        }, 1000 * seconds);
+
+        req.hook('response', 10001, function timeoutClear(req, res, next) {
+            clearTimeout(timeoutId);
+            next();
+        });
+
+        next();
+    };
+}
+
+/**
+ * Response middleware for transforming the response body and setting content type.
+ * @param {Request} req
+ * @param {Response} res
+ * @param {function} next
+ */
+function transform(req, res, next) {
+    const state = res.state;
+    const body = state.body;
+    const type = typeof body;
+    const isBuffer = body instanceof Buffer;
+    let contentType;
+
+    // error conversion
+    if (body instanceof Error) {
+        res.log('transform', 'Converting Error to response', { value: body });
+        res.status(500).body(httpStatus[500]).set('content-type', 'text/plain');
+
+    // buffer conversion
+    } else if (isBuffer) {
+        res.log('transform', 'Converting Buffer to base64 string', { value: body });
+        res.body(body.toString('base64'));
+        contentType = 'application/octet-stream';
+
+    // object conversion
+    } else if (type === 'object') {
+        res.log('transform', 'Converting object to JSON string', { value: body });
+        res.body(JSON.stringify(body));
+        contentType = 'application/json';
+
+    // not string conversion
+    } else if (type !== 'string') {
+        res.log('transform', 'Converting ' + type + ' to string', { value: body });
+        res.body(String(body));
+        contentType = 'text/plain';
+
+    } else {
+        contentType = 'text/html';
+    }
+
+    // set content type if not yet set
+    if (!state.headers.hasOwnProperty('content-type') && contentType) {
+        res.log('transform', 'Set content type');
+        res.set('Content-Type', contentType);
+    }
+
+    next();
+}
+
+/**
+ * Middleware to make sure the method is valid.
+ * @param {Request} req
+ * @param {Response} res
+ * @param {function} next
+ */
+function validMethod(req, res, next) {
+    if (httpMethods.indexOf(req.method) === -1) {
+        res.sendStatus(405);
+    } else {
+        next();
     }
 }

@@ -15,154 +15,251 @@
  *    limitations under the License.
  **/
 'use strict';
+const EventEmitter  = require('events');
 const expect        = require('chai').expect;
-const schema        = require('../bin/server/schemas').request;
-const request       = require('../bin/server/request');
+const Request       = require('../bin/server/request');
+const SansServer    = require('../bin/server/sans-server');
 
 describe('request', () => {
+    let server;
 
-    describe('schema', () => {
+    beforeEach(() => {
+        server = SansServer({ rejectable: true });
+    });
 
-        it('cannot be null', () => {
-            expect(() => schema.validate(null)).to.throw(Error);
+    describe('instance type', () => {
+
+        it('Request', () => {
+            const req = server.request();
+            expect(req).to.be.instanceOf(Request);
         });
 
-        it('can be undefined', () => {
-            expect(() => schema.validate()).to.throw(Error);
-        });
-
-        it('can be an empty object', () => {
-            expect(() => schema.validate({})).not.to.throw(Error);
-        });
-
-        describe('body', () => {
-
-            it('can be null', () => {
-                expect(() => schema.validate({ body: null })).not.to.throw(Error);
-            });
-
-            it('can be object', () => {
-                expect(() => schema.validate({ body: {} })).not.to.throw(Error);
-            });
-
-            it('can be string', () => {
-                expect(() => schema.validate({ body: '' })).not.to.throw(Error);
-            });
-
-            it('cannot be number', () => {
-                expect(() => schema.validate({ body: 1 })).to.throw(Error);
-            });
-
-        });
-
-        describe('headers', () => {
-
-            it('can be null', () => {
-                expect(() => schema.validate({ headers: null })).not.to.throw(Error);
-            });
-
-            it('null transforms to object', () => {
-                expect(schema.normalize({ headers: null }).headers).to.deep.equal({});
-            });
-
-            it('can be object', () => {
-                expect(() => schema.validate({ headers: {} })).not.to.throw(Error);
-            });
-
-            it('can be object with strings', () => {
-                expect(() => schema.validate({ headers: { foo: 'bar' } })).not.to.throw(Error);
-            });
-
-            it('can be object with numbers', () => {
-                expect(() => schema.validate({ headers: { foo: 1 } })).to.throw(Error);
-            });
-
-            it('cannot be number', () => {
-                expect(() => schema.validate({ headers: 1 })).to.throw(Error);
-            });
-
-        });
-
-        describe('path', () => {
-
-            it('adds start slash', () => {
-                const o = schema.normalize({ path: 'abc' });
-                expect(o.path).to.equal('/abc');
-            });
-
-            it('removes trailing slash', () => {
-                const o = schema.normalize({ path: '/abc/' });
-                expect(o.path).to.equal('/abc');
-            });
-
-        });
-
-        describe('query', () => {
-
-            it('can be null', () => {
-                expect(() => schema.validate({ query: null })).not.to.throw(Error);
-            });
-
-            it('can be object with strings', () => {
-                expect(() => schema.validate({ query: { foo: 'bar' } })).not.to.throw(Error);
-            });
-
-            it('can be object with empty array', () => {
-                expect(() => schema.validate({ query: { foo: [] } })).not.to.throw(Error);
-            });
-
-            it('can be object with array of string', () => {
-                expect(() => schema.normalize({ query: { foo: ['bar', 'baz'] } })).not.to.throw(Error);
-            });
-
+        it('EventEmitter', () => {
+            const req = server.request();
+            expect(req).to.be.instanceOf(EventEmitter);
         });
 
     });
 
-    describe('request instance', () => {
+    describe('body', () => {
 
-        it('can accept undefined', () => {
-            expect(() => request()).not.to.throw(Error);
-        });
-
-        it('can provide path via string', () => {
-            const req = request('/foo/bar');
-            expect(req.path).to.equal('/foo/bar');
-        });
-
-        it('can pass query via path', () => {
-            const req = request({ path: '/abc?foo=bar&baz=123' });
-            expect(req.path).to.equal('/abc');
-            expect(Object.keys(req.query)).to.deep.equal(['foo', 'baz']);
-            expect(req.query.foo).to.equal('bar');
-            expect(req.query.baz).to.equal('123');
-        });
-
-        it('lowercases headers', () => {
-            const req = request({ headers: { Foo: 'bar' }});
-            expect(req.headers).to.have.ownProperty('foo');
-            expect(Object.keys(req.headers).length).to.equal(1);
-            expect(req.headers.foo).to.equal('bar');
-        });
-
-        it('can resolve', () => {
-            const req = request();
-            const o = {};
-            req.resolve(o);
-            return req.promise.then(v => {
-                expect(v).to.equal(o);
+        it('accepts string', () => {
+            server.use((req, res, next) => {
+                expect(req.body).to.equal('abc');
+                next();
             });
+            return server.request({ body: 'abc' });
         });
 
-        it('can reject', () => {
-            const req = request();
+        it('copies body object', () => {
             const o = {};
-            req.reject(o);
-            return req.promise
-                .then(
-                    v => { throw Error('Wrong error'); },
-                    e => { expect(e).to.equal(o); }
-                );
+            server.use((req, res, next) => {
+                expect(req.body).to.not.equal(o);
+                expect(req.body).to.deep.equal(o);
+                next();
+            });
+            return server.request({ body: o });
+        });
+
+    });
+
+    describe('headers', () => {
+
+        it('null header ignored', () => {
+            server.use((req, res, next) => {
+                expect(req.headers).to.deep.equal({});
+                next();
+            });
+            return server.request({ headers: null });
+        });
+
+        it('non string header value converted to string', () => {
+            server.use((req, res, next) => {
+                expect(req.headers).to.deep.equal({ a: '1' });
+                next();
+            });
+            return server.request({ headers: { a: 1 } });
+        });
+
+    });
+
+    describe('query', () => {
+
+        it('no query', () => {
+            server.use((req, res, next) => {
+                expect(req.query).to.deep.equal({});
+                expect(req.url).to.equal('/');
+                res.send();
+            });
+            return server.request('');
+        });
+
+        it('null query', () => {
+            server.use((req, res, next) => {
+                expect(req.query).to.deep.equal({});
+                res.send();
+            });
+            return server.request({ query: null });
+        });
+
+        it('from path', () => {
+            server.use((req, res, next) => {
+                expect(req.query).to.deep.equal({ a: '1', b: '', c: true, d: '4' });
+                expect(req.url).to.equal('/?a=1&b=&c&d=4');
+                res.send();
+            });
+            return server.request('?a=1&b=&c&d=4');
+        });
+
+        it('from query string', () => {
+            server.use((req, res, next) => {
+                expect(req.query).to.deep.equal({ a: ['1', '2', '', true], b: '', c: true, d: '4' });
+                expect(req.url).to.equal('/?a=1&a=2&a=&a&b=&c&d=4');
+                res.send();
+            });
+            return server.request({ query: 'a=1&a=2&a=&a&b=&c&d=4' });
+        });
+
+        it('from query object', () => {
+            server.use((req, res, next) => {
+                expect(req.query).to.deep.equal({ a: ['1', '2', '', true], b: true, c: '', d: '4' });
+                expect(req.url).to.equal('/?a=1&a=2&a=&a&b&c=&d=4');
+                res.send();
+            });
+            return server.request({ query: { a: [1, '2', '', true], b: true, c: '', d: 4 }});
+        });
+
+    });
+
+    it('path not string is ignored', () => {
+        server.use((req, res, next) => {
+            expect(req.path).to.equal('/');
+            next();
+        });
+        return server.request({ path: null });
+    });
+
+    describe('middleware', () => {
+
+        it('calls middleware in order', () => {
+            let s = '';
+            server.use(function a(req, res, next) {
+                s += 'a';
+                next();
+            });
+            server.use(function b(req, res, next) {
+                s += 'b';
+                res.send();
+            });
+            return server.request().then(() => expect(s).to.equal('ab'));
+        });
+
+    });
+
+    describe('hooks', () => {
+
+        it('calls request hooks in order', () => {
+            let s = '';
+            server.hook('request', function a(req, res, next) {
+                s += 'a';
+                next();
+            });
+            server.hook('request', function b(req, res, next) {
+                s += 'b';
+                res.send();
+            });
+            return server.request().then(() => expect(s).to.equal('ab'));
+        });
+
+        it('calls response hooks in reverse order', () => {
+            let s = '';
+            server.hook('response', function a(req, res, next) {
+                s += 'a';
+                next();
+            });
+            server.hook('response', function b(req, res, next) {
+                s += 'b';
+                next();
+            });
+            return server.request().then(() => expect(s).to.equal('ba'));
+        });
+
+        it('try to run non-existent hooks produces error with next', () => {
+            let err;
+            server.use((req, res, next) => {
+                req.hook.run('abc', function(error) {
+                    err = error;
+                    next();
+                });
+            });
+            return server.request()
+                .then(() => {
+                    expect(err).to.be.instanceof(Error);
+                });
+        });
+
+        it('try to run non-existent hooks produces error with promise', () => {
+            let err;
+            server.use((req, res, next) => {
+                req.hook.run('abc').then(next, function(error) {
+                    err = error;
+                    next();
+                });
+            });
+            return server.request()
+                .then(() => {
+                    expect(err).to.be.instanceof(Error);
+                });
+        });
+
+        it('run empty hooks resolves', () => {
+            const key = server.hook.define('abc');
+            server.use((req, res, next) => {
+                req.hook.run(key, next);
+            });
+            return server.request();
+        });
+
+    });
+
+    describe('conflicting results', () => {
+        let server;
+
+        beforeEach(() => {
+            server = SansServer({ rejectable: false });
+        });
+
+        it('can ignore error after send', () => {
+            server.use((req, res, next) => {
+                res.send('ok');
+                throw Error('oops');
+            });
+            return server.request()
+                .then(res => {
+                    expect(res.statusCode).to.equal(200);
+                });
+        });
+
+        it('can ignore res-complete after error', () => {
+            server.use((req, res, next) => {
+                req.emit('error', Error('oops'));
+                res.send('ok');
+            });
+            return server.request()
+                .then(res => {
+                    expect(res.statusCode).to.equal(500);
+                });
+        });
+
+        it('can receive res-complete twice without error', () => {
+            server.use((req, res, next) => {
+                res.send('ok');
+                req.emit('res-complete');
+            });
+            return server.request()
+                .then(res => {
+                    expect(res.statusCode).to.equal(200);
+                });
         });
 
     });

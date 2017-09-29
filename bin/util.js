@@ -15,14 +15,79 @@
  *    limitations under the License.
  **/
 'use strict';
+const util      = require('util');
 
-exports.reqLog = function(req, log) {
-    return function(title, message, details) {
-        if (arguments.length === 1 || (arguments.length === 2 && typeof arguments[1] === 'object')) {
-            title = 'log';
-            message = arguments[0];
-            details = arguments[1];
-        }
-        log(req, title, message, details);
-    };
+/**
+ * Copy a value.
+ * @param {*} value
+ * @returns {*}
+ */
+exports.copy = function(value) {
+    const map = new WeakMap();
+    return copy(value, map);
 };
+
+/**
+ * Call util.format with args.
+ * @param {object} args
+ * @returns {string}
+ */
+exports.format = function(args) {
+    return util.format.apply(util, args);
+};
+
+/**
+ * Check to see if an object is plain.
+ * @param {Object} o
+ * @returns {boolean}
+ */
+exports.isPlainObject = function (o) {
+    if (typeof o !== 'object' || !o) return false;
+
+    const constructor = o.constructor;
+    if (typeof constructor !== 'function') return false;
+
+    const prototype = constructor.prototype;
+    return !(!prototype || typeof prototype !== 'object' || !prototype.hasOwnProperty('isPrototypeOf'));
+};
+
+exports.seconds = function seconds(milliseconds) {
+    let seconds = milliseconds / 1000;
+
+    if (seconds > 9999) return '9999+';
+    if (seconds > 999) return Math.round(seconds) + ' ';
+
+    const numeral = Math.floor(seconds);
+    const nLength = String(numeral).length;
+    const decimal = String(Math.round((seconds - numeral) * Math.pow(10, 4 - nLength)) / Math.pow(10, 4 - nLength)).split('.')[1];
+
+    return numeral + '.' + (!decimal ? '000' : decimal + '0'.repeat(3)).substr(0, 4 - nLength);
+};
+
+/**
+ * Perform a deep copy of a value.
+ * @param {*} obj
+ * @param {WeakMap} [map]
+ * @returns {*}
+ */
+function copy(obj, map) {
+    if (map.has(obj)) {
+        return map.get(obj);
+    } else if (Array.isArray(obj)) {
+        const result = [];
+        map.set(obj, result);
+        obj.forEach(item => {
+            result.push(copy(item, map));
+        });
+        return result;
+    } else if (typeof obj === 'object' && obj) {
+        const result = {};
+        map.set(obj, result);
+        Object.keys(obj).forEach(key => {
+            result[key] = copy(obj[key], map);
+        });
+        return result;
+    } else {
+        return obj;
+    }
+}

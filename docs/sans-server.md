@@ -15,6 +15,8 @@ This page documents the sans-server instance properties and methods.
 
 ***SansServer ( [ configuration : Object ] ) : SansServer***
 
+```SansServer ( [ configuration : object ] ) : SansServer```
+
 Construct a SansServer instance.
 
 ```js
