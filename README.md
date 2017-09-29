@@ -14,7 +14,7 @@ Write code for a server, without the server.
 - Easier to test your server code (using direct function calls).
 - Faster to test your server code (no HTTP required).
 - Can be wrapped by any server.
-- Easy to read logging.
+- Logs and profiling grouped by request.
 
 ## Example
 
