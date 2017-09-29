@@ -184,36 +184,6 @@ function defineHookRunner(runners, type) {
 }
 
 /**
- * Produce a consistent message from event data.
- * @private
- * @param {object} lengths
- * @param {object} config SansServer logs configuration.
- * @param {object} data
- * @returns {string}
- */
-function eventMessage(lengths, config, data) {
-    const totalLength = lengths.action + lengths.category;
-    const maxLength = 36;
-    if (totalLength > maxLength) {
-        const percent = lengths.action / totalLength;
-        const larger = percent >= .5;
-        lengths.action = Math[larger ? 'ceil': 'floor'](percent * maxLength);
-        lengths.category = maxLength - Math[larger ? 'floor': 'ceil'](percent * maxLength);
-    }
-
-    return prettyPrint.fixedLength(data.category.toLowerCase(), lengths.category) + '  ' +
-        prettyPrint.fixedLength(data.action, lengths.action) + '  ' +
-        (config.grouped ? '' : data.requestId + '  ') +
-        (config.timestamp ? new Date(data.now).toISOString() + '  ' : '') +
-        (config.timeDiff ? '+' + prettyPrint.seconds(data.diff) + '  ' : '') +
-        (config.duration ? '@' + prettyPrint.seconds(data.duration) + '  ' : '') +
-        data.message +
-        (config.verbose && data.details && typeof data.details === 'object'
-            ? '\n\t' + JSON.stringify(data.details, null, '  ').replace(/^/gm, '\t')
-            : '');
-}
-
-/**
  * Get a request started.
  * @param {SansServer} server
  * @param {object} config
