@@ -90,23 +90,10 @@ Create a Sans Server instance that follows the specified configuration.
 
 | Option | Description | Type | Default |
 | --- | --- | --- | --- |
-| logs | A string or an object that specifies how the logs should be output. See [Log Options](#log-options) for details. | `Object.<string,boolean>` `string` | See [Log Options](#log-options) |
+| logs | A boolean that specifies whether the grouped logs should be output at the end of a request. | `boolean` | `true` |
 | rejectable | A value that specifies if request promises should be rejected or automatically caught. If set to `false` then requests will always return a valid response. | `boolean` | `false` |
 | timeout | The number of seconds to wait prior to request timeout. Set this value to zero to disable the timeout. | `number` | `30` |
 | useBuiltInHooks | A boolean specifying whether built in hooks should run for each request. This includes [request method validation](#sansserverhooksvalidatemethod) and [response transformation](#sansserverhookstransformresponse). If set to false the built in hooks can still be added manually. | `boolean` | `true` |
-    
-###### Log Options
-
-If a string value is provided then it must either be `'silent'` or `'verbose'` and all other defaults will be used. Otherwise you can use an object to specify all of the options.
-
-| Option | Description | Type | Default |
-| --- | --- | --- | --- |
-| duration | Whether to output the number of seconds since request start with each log event. | `boolean` | `false` |
-| grouped | Whether to group all logs together for a request. When enabled logs will not be output until the request completes. | `boolean` | `true` |
-| silent | Whether to silence all log output. | `boolean` | `false` |
-| timeDiff | Whether to list the dime difference between two log events. | `boolean` | `true` |
-| timestamp | Whether to output the system time with each log. | `boolean` | `false` |
-| verbose | Whether to display detail information with each log. | `boolean` | `false` |
 
 **Returns** a [Sans Server](#sansserver-constructor) instance.
 

@@ -27,14 +27,10 @@ module.exports = SansServer;
 /**
  * Create a san-server instance.
  * @param {object} [configuration] Configuration options.
- * @param {string|object} [configuration.logs] An object configuring log output.
- * @param {boolean} [configuration.logs.duration=false] Set to true to show the time into the request at which the log occurred.
- * @param {boolean} [configuration.logs.grouped=true] Set to true to group all logs for a single request together before outputting to console.
- * @param {boolean} [configuration.logs.silent=false] Set to true to silence all logs.
- * @param {boolean} [configuration.logs.timeDiff=true] Set to true to show the time difference between log events.
- * @param {boolean} [configuration.logs.timestamp=false] Set to true to display the timestamp for each log event.
- * @param {boolean} [configuration.logs.verbose=false] Set to true to output more details about each log event.
+ * @param {boolean} [configuration.logs=true] Whether to output grouped logs at the end of a request.
+ * @param {boolean} [configuration.rejectable=false] Whether an error while processing the request should cause a failure or return a 500 response.
  * @param {number} [configuration.timeout=30] The number of seconds to wait before timeout for a request.
+ * @param {boolean} [configuration.useBuiltInHooks=true] Whether to use built in middleware.
  * @returns {SansServer}
  * @constructor
  */
