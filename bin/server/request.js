@@ -224,6 +224,31 @@ Request.prototype.name = 'Request';
 Request.prototype.constructor = Request;
 
 /**
+ * Produce a log event.
+ * @param {string} message
+ * @param {...*} [arg]
+ * @returns {Request}
+ * @fires Request#log
+ */
+Request.prototype.log = function(message, arg) {
+    const data = util.format(arguments);
+
+    /**
+     * A log event.
+     * @event Request#log
+     * @type {{ type: string, data: string, timestamp: number} }
+     */
+    this.emit('log', {
+        type: 'request',
+        data: data,
+        timestamp: Date.now()
+    });
+
+    debug(this.id + ' ' + data);
+    return this;
+};
+
+/**
  * Add request specific hooks
  * @param {object} hooks
  * @param {string} type
@@ -263,31 +288,6 @@ function addHook(hooks, type, weight, hook) {
     }
     return this;
 }
-
-/**
- * Produce a log event.
- * @param {string} message
- * @param {...*} [arg]
- * @returns {Request}
- * @fires Request#log
- */
-Request.prototype.log = function(message, arg) {
-    const data = util.format(arguments);
-
-    /**
-     * A log event.
-     * @event Request#log
-     * @type {{ type: string, data: string, timestamp: number} }
-     */
-    this.emit('log', {
-        type: 'request',
-        data: data,
-        timestamp: Date.now()
-    });
-
-    debug(this.id + ' ' + data);
-    return this;
-};
 
 function buildQueryString(query) {
     const results = Object.keys(query).reduce(function(ar, key) {
