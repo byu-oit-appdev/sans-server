@@ -584,6 +584,7 @@ Because the request instance extends the Promise you can also use `then` and `ca
 - [hook.reverse](#requesthookreverse) - Run specified hook functions in reverse.
 - [hook.run](#requesthookrun) - Run specified hook functions in order.
 - [log](#requestlog) - Produce a request log event.
+- [logger](#requestlogger) - Produce a logging function.
 - [then](#requestthen) - Assign a callback for the resolved promise.
 
 **Properties**
@@ -800,6 +801,44 @@ server.use(function myMiddleware(req, res, next) {
     const start = new Date();
     req.log('myMiddleware', 'running', { start: start.toISOString() });
     res.log('myMiddleware', 'still running');
+});
+```
+
+<div style='text-align: right'>
+    <em>
+        Jump To:
+        <a href='#table-of-contents'>Table of Contents</a> |
+        <a href='#request-constructor'>Request Constructor</a>
+    </em>
+</div>
+
+## Request#logger
+
+Produce a logging function. The returned function can be called to produce standardized log events. This function is used to produce the log function for the both the [Request](#request-constructor) and [Response](#response-constructor).
+
+**Signature** **<code>Request#logger (category, type, [ returnValue ]) : Function</code>**
+
+**Parameters**
+
+| Parameter | Description | Type | Default |
+| --- | --- | --- | --- |
+| category | A short string that describes the overarching code that is producing the log function. A good option for this value would be the name of the NodeJS package producing the log function. | `string` | |
+| type | A classification that describes the subset of code that is producing the log function. A good option for this value would be the name of the module of code that is producing the log function. | `string` | |
+| returnValue | A value to run when the log function is called. Ideal for property chaining. | Any | `undefined` |
+
+**Returns** the log producing function. The function can be called with any parameters and will format the logged data similar to the `console.log` function, but this function will have the advantage of logging with the [Debug package](https://www.npmjs.com/package/debug) as well as grouping logs for a single request.
+
+**Example**
+
+This example is trivial and a bit of a waste. It would generally make more sense to produce a log function for a complex middleware that implements it's own [sans-server-middleware](https://www.npmjs.com/package/sans-server-middleware).
+
+```js
+const SansServer = require('sans-server');
+const server = SansServer();
+
+server.use(function myMiddleware(req, res, next) {
+    const log = req.logger('my-package-name', 'this-module-name');
+    log('This is a number %d', 5);
 });
 ```
 
