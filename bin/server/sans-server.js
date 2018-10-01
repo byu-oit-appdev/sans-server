@@ -210,9 +210,11 @@ SansServer.prototype.request = function(request, callback) {
             time: start
         });
 
-        timeoutId = setTimeout(function () {
+        if (config.timeout) {
+          timeoutId = setTimeout(function () {
             res.sendStatus(504);
-        }, 1000 * config.timeout);
+          }, 1000 * config.timeout);
+        }
 
         // run the middleware
         run(chain, req, res);
