@@ -106,7 +106,7 @@ function SansServer(configuration) {
     if (config.useBuiltInHooks) this.hook('request', -100000, validMethod);
 
     // set response hooks
-    if (config.useBuiltInHooks) this.hook('response', 100000, transform);
+    if (config.useBuiltInHooks) this.hook('response', -100000, transform);
 }
 
 /**
@@ -221,7 +221,7 @@ function request(server, config, hooks, keys, request, callback) {
         const log = function(state) {
             const events = queue.map((event, index) => {
                 const seconds = util.seconds(event.timestamp - (index > 0 ? queue[index - 1].timestamp : start));
-                return '[+' + seconds + 's] ' + event.type + ' ' + event.data;
+                return '[+' + seconds + 's] ' + event.category + ':' + event.type + ' ' + event.data;
             });
             console.log(state.statusCode + ' ' + req.method + ' ' + req.url +
                 (state.statusCode === 302 ? '\n  Redirect To: ' + state.headers['location']  : '') +
@@ -260,7 +260,7 @@ function timeout(seconds) {
             if (!res.sent) res.sendStatus(504)
         }, 1000 * seconds);
 
-        req.hook('response', 10001, function timeoutClear(req, res, next) {
+        req.hook('response', Number.MAX_SAFE_INTEGER - 1000, function timeoutClear(req, res, next) {
             clearTimeout(timeoutId);
             next();
         });
@@ -284,24 +284,24 @@ function transform(req, res, next) {
 
     // error conversion
     if (body instanceof Error) {
-        res.log('transform', 'Converting Error to response', { value: body });
+        res.log('transform', 'Converting Error to response');
         res.status(500).body(httpStatus[500]).set('content-type', 'text/plain');
 
     // buffer conversion
     } else if (isBuffer) {
-        res.log('transform', 'Converting Buffer to base64 string', { value: body });
+        res.log('transform', 'Converting Buffer to base64 string');
         res.body(body.toString('base64'));
         contentType = 'application/octet-stream';
 
     // object conversion
     } else if (type === 'object') {
-        res.log('transform', 'Converting object to JSON string', { value: body });
+        res.log('transform', 'Converting object to JSON string');
         res.body(JSON.stringify(body));
         contentType = 'application/json';
 
     // not string conversion
     } else if (type !== 'string') {
-        res.log('transform', 'Converting ' + type + ' to string', { value: body });
+        res.log('transform', 'Converting ' + type + ' to string');
         res.body(String(body));
         contentType = 'text/plain';
 
